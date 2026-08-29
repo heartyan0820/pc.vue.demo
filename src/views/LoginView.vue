@@ -8,11 +8,29 @@ import { useAuthStore } from '../stores/auth'
 const authStore = useAuthStore()
 const router = useRouter()
 
+// 记住账号密码用的 localStorage key
+const REMEMBER_KEY = 'pc-vue-demo-remember'
+
 // 登录表单数据
 const form = reactive({
   username: '',
   password: '',
 })
+
+// "记住我"开关，初始值从 localStorage 读取（上次是否勾选过）
+const rememberMe = ref(localStorage.getItem(REMEMBER_KEY) === '1')
+
+// 进入页面时：如果上次勾选了"记住我"，把保存的账号密码回填到表单
+if (rememberMe.value) {
+  try {
+    // JSON.parse 把字符串转回对象；解析失败就当没存过
+    const saved = JSON.parse(localStorage.getItem(REMEMBER_KEY + '-cred') || '{}')
+    form.username = saved.username || ''
+    form.password = saved.password || ''
+  } catch {
+    // 解析失败不做任何事
+  }
+}
 
 const formRef = ref()
 
@@ -25,6 +43,18 @@ async function handleLogin() {
   await formRef.value.validate() // 校验不通过会抛异常，不会往下走
 
   if (authStore.login(form.username, form.password)) {
+    // 登录成功后再处理"记住我"：勾选了就保存账号密码，没勾就清除
+    if (rememberMe.value) {
+      localStorage.setItem(REMEMBER_KEY, '1') // 标记"已勾选"
+      localStorage.setItem(
+        REMEMBER_KEY + '-cred',
+        JSON.stringify({ username: form.username, password: form.password })
+      )
+    } else {
+      localStorage.removeItem(REMEMBER_KEY)
+      localStorage.removeItem(REMEMBER_KEY + '-cred')
+    }
+
     ElMessage.success('登录成功')
     router.push('/orders') // 登录成功进入订单管理页
   } else {
@@ -63,6 +93,9 @@ async function handleLogin() {
               <el-icon><Lock /></el-icon>
             </template>
           </el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="rememberMe">记住账号密码</el-checkbox>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" class="login-btn" @click="handleLogin">
