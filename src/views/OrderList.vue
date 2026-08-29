@@ -116,8 +116,8 @@ async function handleDelete(row) {
  
       <div style="display:flex; justify-content:space-between; align-items:center">
         <div>
-          <el-button type="primary" style="background-color:#2549E7">查询</el-button>
-          <el-button type="primary" style="background-color:#3D9FA6">重置</el-button>
+          <el-button type="primary" style="background-color:#2549E7">查 询</el-button>
+          <el-button type="primary" style="background-color:#3D9FA6">重 置</el-button>
         </div>
         <div style="margin-left:1000px">
           <el-button type="primary" @click="openAdd" style="display:right">新增订单</el-button>
