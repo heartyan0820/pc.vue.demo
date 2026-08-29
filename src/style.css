@@ -1,0 +1,26 @@
+/* 全局基础样式 */
+
+/* 简单重置：去掉浏览器默认的边距 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  /*
+   * --app-font-size 是一个 CSS 变量，
+   * 它的值由 App.vue 里的 watchEffect 动态写入（个人中心里可调整），
+   * 全站文字都会跟随这个变量变化。
+   */
+  font-size: var(--app-font-size, 14px);
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  color: #333;
+  background-color: #f5f7fa;
+}
