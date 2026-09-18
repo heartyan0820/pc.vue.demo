@@ -7,6 +7,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import { useUiStore } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
+import { InfoFilled, MagicStick } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
 const ui = useUiStore()
@@ -39,7 +40,7 @@ function onUserCommand(command) {
         ElMessage.success('已退出登录')
         router.push('/login') // 回到登录页（路由守卫也会拦截未登录的访问）
       })
-      .catch(() => {}) // 用户点"取消"会走到这里，什么都不用做
+      .catch(() => { }) // 用户点"取消"会走到这里，什么都不用做
   }
 }
 </script>
@@ -55,20 +56,25 @@ function onUserCommand(command) {
           {{ !ui.isMobile && ui.isCollapsed ? '订' : '订单管理系统' }}
         </div>
         <!-- collapse 属性：是否折叠（折叠模式只在竖向菜单下生效） -->
-        <el-menu
-          :default-active="route.path"
-          :mode="ui.isMobile ? 'horizontal' : 'vertical'"
-          :collapse="!ui.isMobile && ui.isCollapsed"
-          :collapse-transition="false"
-          router
-        >
+        <el-menu :default-active="route.path" :mode="ui.isMobile ? 'horizontal' : 'vertical'"
+          :collapse="!ui.isMobile && ui.isCollapsed" :collapse-transition="false" router>
           <el-menu-item index="/orders">
-            <el-icon><Tickets /></el-icon>
+            <el-icon>
+              <Tickets />
+            </el-icon>
             <template #title>订单管理</template>
           </el-menu-item>
           <el-menu-item index="/stats">
-            <el-icon><TrendCharts /></el-icon>
+            <el-icon>
+              <TrendCharts />
+            </el-icon>
             <template #title>数据统计</template>
+          </el-menu-item>
+          <el-menu-item index="/vue3demo">
+            <el-icon>
+              <MagicStick />
+            </el-icon>
+            <template #title>Vue3Demo</template>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -78,12 +84,8 @@ function onUserCommand(command) {
         <el-header class="layout-header">
           <div class="header-left">
             <!-- 点击图标切换侧边栏折叠（窄屏下是横向菜单，不需要折叠按钮） -->
-            <el-icon
-              v-if="!ui.isMobile"
-              class="fold-btn"
-              :title="ui.isCollapsed ? '展开菜单' : '折叠菜单'"
-              @click="ui.toggleCollapse()"
-            >
+            <el-icon v-if="!ui.isMobile" class="fold-btn" :title="ui.isCollapsed ? '展开菜单' : '折叠菜单'"
+              @click="ui.toggleCollapse()">
               <Expand v-if="ui.isCollapsed" />
               <Fold v-else />
             </el-icon>

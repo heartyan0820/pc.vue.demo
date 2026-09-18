@@ -57,12 +57,7 @@ function onFontSizeChange(size) {
             <el-input v-model="form.phone" placeholder="请输入电话" />
           </el-form-item>
           <el-form-item label="个人简介">
-            <el-input
-              v-model="form.intro"
-              type="textarea"
-              :rows="3"
-              placeholder="介绍一下自己吧"
-            />
+            <el-input v-model="form.intro" type="textarea" :rows="3" placeholder="介绍一下自己吧" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="saveProfile">保存</el-button>
@@ -76,11 +71,7 @@ function onFontSizeChange(size) {
       <el-card header="字体大小">
         <!-- el-radio-button：一组按钮式的单选框 -->
         <el-radio-group :model-value="userStore.fontSize" @change="onFontSizeChange">
-          <el-radio-button
-            v-for="item in FONT_SIZES"
-            :key="item.value"
-            :value="item.value"
-          >
+          <el-radio-button v-for="item in FONT_SIZES" :key="item.value" :value="item.value">
             {{ item.label }}（{{ item.value }}px）
           </el-radio-button>
         </el-radio-group>

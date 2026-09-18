@@ -93,35 +93,19 @@ async function handleDelete(row) {
 <template>
   <el-card>
     <!-- 工具栏：搜索、状态筛选、新增按钮 -->
-    <div class="toolbar" >
-      <el-input
-        v-model="keyword"
-        placeholder="搜索订单号 / 客户 / 商品"
-        clearable
-        style="width: 240px"
-      />
-      <el-select
-        v-model="statusFilter"
-        placeholder="全部状态"
-        clearable
-        style="width: 140px"
-      >
-        <el-option
-          v-for="s in ORDER_STATUS"
-          :key="s.value"
-          :label="s.label"
-          :value="s.value"
-        />
+    <div class="toolbar">
+      <el-input v-model="keyword" placeholder="搜索订单号 / 客户 / 商品" clearable style="width: 240px" />
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 140px">
+        <el-option v-for="s in ORDER_STATUS" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
- 
-      <div style="display:flex; justify-content:space-between; align-items:center">
+      <div style="display:flex; flex:1; justify-content:space-between; align-items:center;">
         <div>
           <el-button type="primary" style="background-color:#2549E7">查 询</el-button>
           <el-button type="primary" style="background-color:#3D9FA6">重 置</el-button>
         </div>
-        <div style="margin-left:1000px">
-          <el-button type="primary" @click="openAdd" style="display:right">新增订单</el-button>
-        </div> 
+        <div>
+          <el-button type="primary" @click="openAdd">新增订单</el-button>
+        </div>
       </div>
 
     </div>
@@ -131,12 +115,7 @@ async function handleDelete(row) {
       <el-table-column prop="orderNo" label="订单号" min-width="150" />
       <el-table-column prop="customer" label="客户" min-width="100" />
       <!-- 窄屏时隐藏次要列（商品、下单日期），避免表格过于拥挤 -->
-      <el-table-column
-        v-if="!ui.isMobile"
-        prop="product"
-        label="商品"
-        min-width="130"
-      />
+      <el-table-column v-if="!ui.isMobile" prop="product" label="商品" min-width="130" />
       <el-table-column prop="amount" label="金额（元）" width="110" align="right">
         <!-- #default 是作用域插槽：拿到当前行数据 row 自己渲染内容 -->
         <template #default="{ row }">
@@ -150,19 +129,9 @@ async function handleDelete(row) {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column
-        v-if="!ui.isMobile"
-        prop="createdAt"
-        label="下单日期"
-        width="120"
-      />
+      <el-table-column v-if="!ui.isMobile" prop="createdAt" label="下单日期" width="120" />
       <!-- fixed 固定列在窄屏时取消，否则会遮挡内容 -->
-      <el-table-column
-        label="操作"
-        width="140"
-        align="center"
-        :fixed="ui.isMobile ? false : 'right'"
-      >
+      <el-table-column label="操作" width="140" align="center" :fixed="ui.isMobile ? false : 'right'">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -174,11 +143,8 @@ async function handleDelete(row) {
   </el-card>
 
   <!-- 新增 / 编辑弹窗（窄屏时宽度改为几乎占满屏幕） -->
-  <el-dialog
-    v-model="dialogVisible"
-    :title="editingId === null ? '新增订单' : '编辑订单'"
-    :width="ui.isMobile ? '94%' : '480px'"
-  >
+  <el-dialog v-model="dialogVisible" :title="editingId === null ? '新增订单' : '编辑订单'"
+    :width="ui.isMobile ? '94%' : '480px'">
     <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
       <el-form-item label="订单号" prop="orderNo">
         <el-input v-model="form.orderNo" />
@@ -194,22 +160,12 @@ async function handleDelete(row) {
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="form.status" style="width: 100%">
-          <el-option
-            v-for="s in ORDER_STATUS"
-            :key="s.value"
-            :label="s.label"
-            :value="s.value"
-          />
+          <el-option v-for="s in ORDER_STATUS" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="下单日期" prop="createdAt">
         <!-- value-format 让日期选择器直接输出 yyyy-MM-dd 字符串 -->
-        <el-date-picker
-          v-model="form.createdAt"
-          type="date"
-          value-format="YYYY-MM-DD"
-          style="width: 100%"
-        />
+        <el-date-picker v-model="form.createdAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
       </el-form-item>
     </el-form>
 
@@ -222,9 +178,10 @@ async function handleDelete(row) {
 
 <style scoped>
 .toolbar {
-  display: flex;  
-  border: 1px solid #cbdef1; 
-  flex-wrap: wrap; /* 窄屏时放不下会自动换行 */
+  display: flex;
+  border: 0px solid #cbdef1;
+  flex-wrap: wrap;
+  /* 窄屏时放不下会自动换行 */
   gap: 12px;
   margin-bottom: 16px;
 }

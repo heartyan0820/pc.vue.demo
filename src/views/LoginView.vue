@@ -71,26 +71,20 @@ async function handleLogin() {
 
       <el-form ref="formRef" :model="form" :rules="rules" size="large">
         <el-form-item prop="username">
-          <el-input
-            v-model="form.username"
-            placeholder="用户名"
-            @keyup.enter="handleLogin"
-          >
+          <el-input v-model="form.username" placeholder="用户名" @keyup.enter="handleLogin">
             <template #prefix>
-              <el-icon><User /></el-icon>
+              <el-icon>
+                <User />
+              </el-icon>
             </template>
           </el-input>
         </el-form-item>
         <el-form-item prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            placeholder="密码"
-            @keyup.enter="handleLogin"
-          >
+          <el-input v-model="form.password" type="password" show-password placeholder="密码" @keyup.enter="handleLogin">
             <template #prefix>
-              <el-icon><Lock /></el-icon>
+              <el-icon>
+                <Lock />
+              </el-icon>
             </template>
           </el-input>
         </el-form-item>

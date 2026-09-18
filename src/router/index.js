@@ -6,6 +6,7 @@ import PersonalCenter from '../views/PersonalCenter.vue'
 import OrderList from '../views/OrderList.vue'
 import DataStats from '../views/DataStats.vue'
 import LoginView from '../views/LoginView.vue'
+import Vue3Demo from '../views/Vue3Demo.vue'
 
 const router = createRouter({
   // hash 模式：URL 中带 #（例如 /#/orders），本地开发最简单
@@ -41,6 +42,12 @@ const router = createRouter({
           name: 'personal',
           component: PersonalCenter,
           meta: { title: '个人中心' },
+        },
+        {
+          path: 'vue3demo',
+          name: 'vue3demo',
+          component: Vue3Demo,
+          meta: { title: 'Vue3Demo' },
         },
       ],
     },
