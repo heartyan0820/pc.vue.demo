@@ -3,8 +3,10 @@ import { nextTick, onMounted, ref } from 'vue'
 import demo1 from '../components/demoComponents/demo1.vue'
 import formDemo from '../components/demoComponents/formDemo.vue'
 import { ElMessageBox, ElMessage } from 'element-plus';
+import Loading from '../components/loading.vue';
 
 const pageContent = ref(null)
+const isLoading = ref(false)
 
 onMounted(async () => {
   await nextTick()
@@ -34,6 +36,16 @@ async function refresh() {
     ElMessage.info('已取消刷新')
   }
 }
+
+async function demoLoading() {
+  isLoading.value = true
+  try {
+    // 替换为实际的异步请求
+    await new Promise(resolve => setTimeout(resolve, 2000))
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -50,7 +62,11 @@ async function refresh() {
       <formDemo />
     </p>
 
+    <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+      <el-button @click="demoLoading">test加载中</el-button>
+      <Loading :show="isLoading" text="... 数据加载中 ..." />
+    </p>
   </div>
 </template>
 
-<style scoped lang="scss"></style>
+<style scoped></style>
