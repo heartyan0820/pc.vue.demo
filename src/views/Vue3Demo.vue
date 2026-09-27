@@ -17,7 +17,10 @@ onMounted(async () => {
 
   if (sessionStorage.getItem('refresh_success') === '1') {
     sessionStorage.removeItem('refresh_success')
-    ElMessage.success('刷新成功！')
+    ElMessage.success({
+      message: '刷新成功！',
+      offset: Math.max(Math.round(window.innerHeight / 2 - 40), 20)
+    })
   }
 })
 
@@ -65,6 +68,10 @@ async function demoLoading() {
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
       <el-button @click="demoLoading">test加载中</el-button>
       <Loading :show="isLoading" text="... 数据加载中 ..." />
+    </p>
+
+    <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+
     </p>
   </div>
 </template>
