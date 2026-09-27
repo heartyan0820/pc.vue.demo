@@ -159,7 +159,6 @@
       <div>侦听器watch-> 结果：{{ sum }}</div>
       <el-label>number1:</el-label><el-input v-model.number="number1" style="width: 200px;" on-focus />
       <el-label>number2:</el-label><el-input v-model.number="number2" style="width: 200px;" />
-
       </p>
     </div>
 
