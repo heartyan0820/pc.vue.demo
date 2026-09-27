@@ -17,6 +17,14 @@ pnpm tauri build
 
 默认生成 MSI 和 NSIS 安装包，产物位于 `src-tauri/target/release/bundle/`。首次打包需要联网下载 Windows 安装器工具。
 
+若希望已安装的桌面 App 后续直接使用 GitHub Pages 上最新的 Vue 页面，使用远程页面配置打包：
+
+```sh
+pnpm tauri:build:remote
+```
+
+安装该版本一次后，后续推送 Vue 页面改动会由 Pages 自动部署；桌面 App 联网重新打开后加载新页面，无需每次重新安装。普通 `pnpm tauri:build` 和 `pnpm tauri:dev` 仍使用本地前端资源，适合离线桌面包和本地开发。
+
 ## Android
 
 安装 Android Studio，并在 SDK Manager 中安装 Android SDK、Platform-Tools、Build-Tools 和 NDK。配置 `JAVA_HOME`、`ANDROID_HOME`、`NDK_HOME`，并确保 Android SDK Command-line Tools 可用。首次在项目根目录初始化：
@@ -37,7 +45,7 @@ pnpm android:dev
 pnpm android:build
 ```
 
-Android APK 使用 `src-tauri/tauri.android.conf.json` 指向 GitHub Pages 线上页面。首次启用此配置后，需要手动构建并安装一次 APK；此后推送 Vue 页面改动只会更新 Pages，已安装 App 在联网重新打开页面后即可加载新版本，不需要每次重新打包 APK。桌面版仍使用 APK/桌面包内的本地前端资源。
+Android APK 使用 `src-tauri/tauri.android.conf.json` 指向 GitHub Pages 线上页面。首次启用此配置后，需要手动构建并安装一次 APK；此后推送 Vue 页面改动只会更新 Pages，已安装 App 在联网重新打开页面后即可加载新版本，不需要每次重新打包 APK。
 
 GitHub Actions 只会在手动运行 `Build Android APK` workflow 时构建 arm64 APK。完成后到仓库的 Actions 运行记录页面，在 Artifacts 区域下载 `pc-vue-demo-android-arm64`。
 
