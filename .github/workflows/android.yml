@@ -1,8 +1,9 @@
 name: Build Android APK
 
 on:
-  push:
-    branches: [main]
+  # 开启下面注释，则push代码就会构建apk
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 env:

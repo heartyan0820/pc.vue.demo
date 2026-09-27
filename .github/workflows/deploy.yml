@@ -14,8 +14,8 @@ concurrency:
 
 permissions:
   contents: read
-  pages: write      # 部署到 Pages 需要写入权限
-  id-token: write   # 使用官方 deploy action 需要这个
+  pages: write # 部署到 Pages 需要写入权限
+  id-token: write # 使用官方 deploy action 需要这个
 
 jobs:
   build-and-deploy:
@@ -26,28 +26,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 安装 Node.js（用 .nvmrc / package.json engines 之外的固定版本，最简单）
+      # 2. 使用与 Android workflow 相同的 pnpm 版本
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      # 3. 安装 Node.js 并缓存 pnpm 依赖
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm # 自动缓存 npm 依赖，第二次构建会更快
+          cache: pnpm
 
-      # 3. 安装项目依赖
+      # 4. 根据 pnpm-lock.yaml 安装项目依赖
       - name: Install dependencies
-        run: npm ci # ci 比 install 更严格、更快，要求 package-lock.json 存在
+        run: pnpm install --frozen-lockfile
 
-      # 4. 构建生产包，输出到 dist/
+      # 5. 构建生产包，输出到 dist/
       - name: Build
-        run: npm run build
+        run: pnpm build
 
-      # 5. 把构建产物上传为一个 artifact（中间产物）
+      # 6. 把构建产物上传为一个 artifact（中间产物）
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      # 6. 部署到 GitHub Pages
+      # 7. 部署到 GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
         id: deployment
