@@ -58,7 +58,7 @@ jobs:
         run: pnpm tauri android init --ci
 
       - name: Build arm64 APK
-        run: pnpm tauri android build --apk --target aarch64
+        run: pnpm tauri android build --config src-tauri/tauri.android.conf.json --apk --target aarch64
 
       - name: Sign and verify APK
         env:

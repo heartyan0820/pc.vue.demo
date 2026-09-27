@@ -37,7 +37,9 @@ pnpm android:dev
 pnpm android:build
 ```
 
-GitHub Actions 会在推送到 `main` 或手动运行 `Build Android APK` workflow 时构建 arm64 APK。完成后到仓库的 Actions 运行记录页面，在 Artifacts 区域下载 `pc-vue-demo-android-arm64`。
+Android APK 使用 `src-tauri/tauri.android.conf.json` 指向 GitHub Pages 线上页面。首次启用此配置后，需要手动构建并安装一次 APK；此后推送 Vue 页面改动只会更新 Pages，已安装 App 在联网重新打开页面后即可加载新版本，不需要每次重新打包 APK。桌面版仍使用 APK/桌面包内的本地前端资源。
+
+GitHub Actions 只会在手动运行 `Build Android APK` workflow 时构建 arm64 APK。完成后到仓库的 Actions 运行记录页面，在 Artifacts 区域下载 `pc-vue-demo-android-arm64`。
 
 若需要后续版本覆盖安装，建议在仓库 Settings → Secrets and variables → Actions 配置固定签名密钥：`ANDROID_KEYSTORE_BASE64`（keystore 文件的 Base64 内容）、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` 和 `ANDROID_STORE_PASSWORD`。未配置时 workflow 会生成临时签名密钥，APK 可安装，但不适合跨构建升级。
 
