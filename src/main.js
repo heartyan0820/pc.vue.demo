@@ -19,5 +19,10 @@ app.use(ElementPlus, { locale: zhCn }) // Element Plus：UI 组件库
 for (const [name, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(name, component)
 }
-
+//组织全局指令
+app.directive('focus', {
+  mounted(el) {
+    el.focus()
+  },
+})
 app.mount('#app')

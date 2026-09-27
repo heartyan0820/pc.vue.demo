@@ -4,7 +4,7 @@
       <input type="text" v-model.lazy="message" placeholder="请输入内容"
         style="width: 200px;height:30px;margin-right: 10px;font-size: 15px;" />
       <br />
-      <label style="font-size: 15px;">输入的内容：{{ message }}</label>
+      <el-label style="font-size: 15px;"> 输入的内容：{{ message }}</el-label>
       <br />
       <br />
       <label>点击的次数：{{ count }}</label>
@@ -59,13 +59,119 @@
             <li v-for="item in userItems" :key="item.id">
               id={{ item.id }}, name={{ item.name }}, age={{ item.age }}
             </li>
+            <br />
+            <li v-for="(item, key, index) in userItems[0]">
+              index={{ index }} key={{ key }} item={{ item }}
+            </li>
           </ul>
         </div>
       </div>
     </div>
-    <hr style="margin:10px 0px;" />
-    <p>
-    </p>
+
+    <div>
+      <hr style="margin:10px 0px;" />
+      <el-label style="display: inline-block; font-size: 16px; font-weight: bold;color:chocolate;padding: 10px 0px;">卡片式
+        template：v-for
+      </el-label>
+      <p>
+        <template v-for="(item, index) in userItems" :key="item.id">
+          <el-card :header="'用户' + (index + 1)" style="margin-bottom: 10px;">
+            <p>id={{ item.id }}, name={{ item.name }}, age={{ item.age }}</p>
+          </el-card>
+        </template>
+      </p>
+    </div>
+
+    <div>
+      <hr style="margin:10px 0px;" />
+      <el-label style="display: inline-block; font-size: 16px; font-weight: bold;color:chocolate;padding: 10px 0px;">
+        事件修饰符
+      </el-label>
+      <p>
+        <!-- 点击事件最多被触发一次 -->
+        <a @click.once="$alert('onceClick')">onceClick</a>
+        <br /><br />
+        输入框：
+        <el-input v-focus type="text" placeholder="请输入内容,按下Enter键触发提示" @keyup.enter="$alert(message)"
+          v-model="message"></el-input>
+      </p>
+    </div>
+
+
+    <div>
+      <hr style="margin:10px 0px;" />
+      <el-label style="display: inline-block; font-size: 16px; font-weight: bold;color:chocolate;padding: 10px 0px;">
+        表单控件
+      </el-label>
+      <p>
+        <el-label style="font-size: 15px;"> 输入的内容：{{ awesome }}</el-label>
+        <br />
+        <el-checkbox v-model="awesome">Awesome</el-checkbox>
+
+        <br /><br />
+
+      <div>Checked names: {{ checkedNames }}</div>
+      <el-checkbox v-model="checkedNames" value="Jack"> Jack</el-checkbox>
+      <el-checkbox v-model="checkedNames" value="John"> John</el-checkbox>
+      <el-checkbox v-model="checkedNames" value="Mike"> Mike</el-checkbox>
+
+      <br /><br />
+      <div>radio names: {{ radioNames }}</div>
+      <el-radio v-model="radioNames" value="Jack"> Jack</el-radio>
+      <el-radio v-model="radioNames" value="John"> John</el-radio>
+      <el-radio v-model="radioNames" value="Mike"> Mike</el-radio>
+
+      <br /><br />
+      <div>下拉框 Selected: {{ selected }}</div>
+      <el-label>单选：</el-label>
+      <el-select v-model="selected" placeholder="请选择" style="width: 200px;">
+        <el-option disabled value="">请选择</el-option>
+        <el-option value="选项1">选项1</el-option>
+        <el-option value="选项2">选项2</el-option>
+        <el-option value="选项3">选项3</el-option>
+      </el-select>
+
+      <el-label> 多选：</el-label>
+      <el-select v-model="selected" multiple placeholder="请选择" style="width: 200px;">
+        <el-option disabled value="">请选择</el-option>
+        <el-option value="选项1">选项1</el-option>
+        <el-option value="选项2">选项2</el-option>
+        <el-option value="选项3">选项3</el-option>
+      </el-select>
+
+      <el-label> 循环遍历下拉框：</el-label>
+      <el-select v-model="selected" style="width: 200px;">
+        <el-option v-for="(item, index) in options" :key="item.value" :label="item.label" :value="item.value">
+          {{ item.label }}
+        </el-option>
+      </el-select>
+
+      <br /><br />
+      <div>修饰符：</div>
+      <el-label>lazy：</el-label>
+      <el-input v-model.lazy="msg" style="width: 200px;" />
+      <el-label> trim：</el-label>
+      <el-input v-model.trim="msg" style="width: 200px;" />
+      <el-label> number：</el-label>
+      <el-input v-model.number="msg" style="width: 200px;" />
+
+      <br /><br />
+      <div>侦听器watch-> 结果：{{ sum }}</div>
+      <el-label>number1:</el-label><el-input v-model.number="number1" style="width: 200px;" on-focus />
+      <el-label>number2:</el-label><el-input v-model.number="number2" style="width: 200px;" />
+
+      </p>
+    </div>
+
+    <div>
+      <hr style="margin:10px 0px;" />
+      <el-label style="display: inline-block; font-size: 16px; font-weight: bold;color:chocolate;padding: 10px 0px;">
+        属性+事件
+      </el-label>
+      <p>
+        <MouseDemo />
+      </p>
+    </div>
 
     </p>
   </div>
@@ -74,11 +180,41 @@
 <script setup>
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { el } from 'element-plus/es/locales.mjs';
-import { ref } from 'vue'
+import { ref, watch, defineProps, onMounted } from 'vue'
+import Parent from '../PropsDemo/Parent.vue'
+import MouseDemo from '../EventComponents/MouseDemo.vue';
 
+const props = defineProps(['foo'])
+onMounted(() => {
+  console.log(props.foo)
+  console.log(`prop.foo=${props.foo === undefined ? '空' : props.foo}`)
+
+})
+
+const number1 = ref(0)
+const number2 = ref(0)
+const sum = ref(0)
+watch(
+  () => number1.value + number2.value,
+  (newSum) => {
+    console.log('number1 + number2 =', newSum)
+    sum.value = newSum
+  }
+)
+const watchObj = ref(0)
+watch(watchObj, (newValue, oldValue) => {
+  console.log('newValue=' + newValue)
+  console.log('oldValue=' + oldValue)
+})
+watchObj.value++
+
+const msg = ref('')
+const selected = ref('')
 const message = ref('')
 const count = ref(0)
 const awesome = ref(true)
+const checkedNames = ref([])
+const radioNames = ref([])
 const styleObject = ref({
   color: 'red',
   fontSize: '16px',
@@ -87,6 +223,14 @@ const styleObject = ref({
   padding: '5px',
   borderRadius: '5px',
 });
+const options = ref([
+  { value: '', label: '请选择...' },
+  { value: '选项1', label: '黄金糕' },
+  { value: '选项2', label: '双皮奶' },
+  { value: '选项3', label: '蚵仔煎' },
+  { value: '选项4', label: '龙须面' },
+  { value: '选项5', label: '北京烤鸭' },
+])
 
 const btnAdd = () => {
   count.value++;

@@ -1,12 +1,21 @@
 <script setup>
-import { ref, useTemplateRef } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import demo1 from '../components/demoComponents/demo1.vue'
 import formDemo from '../components/demoComponents/formDemo.vue'
 
+const pageContent = ref(null)
+
+onMounted(async () => {
+  await nextTick()
+  const scrollContainer = pageContent.value?.closest('.el-main')
+  if (scrollContainer) {
+    scrollContainer.scrollTop = scrollContainer.scrollHeight
+  }
+})
 </script>
 
 <template>
-  <div>
+  <div ref="pageContent">
     <h2>下面是vue3子组件Demo</h2>
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
       <demo1 />
