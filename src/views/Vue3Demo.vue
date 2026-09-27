@@ -16,7 +16,7 @@ onMounted(async () => {
 
 <template>
   <div ref="pageContent">
-    <h2>****123****vue3子组件Demo*****456****</h2>
+    <h2>********这是vue3子组件Demo*********</h2>
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
       <demo1 />
       <hr style="margin:10px 0px;" />
