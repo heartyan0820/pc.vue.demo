@@ -157,7 +157,7 @@
 
       <br /><br />
       <div>侦听器watch-> 结果：{{ sum }}</div>
-      <el-label>number1:</el-label><el-input v-model.number="number1" style="width: 200px;" on-focus />
+      <el-label>number1:</el-label><el-input v-model.number="number1" style="width: 200px;" />
       <el-label>number2:</el-label><el-input v-model.number="number2" style="width: 200px;" />
       </p>
     </div>
@@ -169,6 +169,23 @@
       </el-label>
       <p>
         <MouseDemo />
+      </p>
+      <br />
+
+      <p>
+        <hr style="margin:10px 0px;" />
+        <el-label style="display: inline; font-size: 16px; font-weight: bold;color:chocolate;padding: 10px 0px;">
+          img </el-label>
+        <br />
+        <br />
+        <img v-lazy="imgUrl" alt="图片a" />
+        <br />
+        <br />
+        <el-label>start：{{ startIndex }}</el-label>
+      </p>
+
+      <p>
+        <UseTimer />
       </p>
     </div>
 
@@ -182,6 +199,7 @@ import { el } from 'element-plus/es/locales.mjs';
 import { ref, watch, defineProps, onMounted } from 'vue'
 import Parent from '../PropsDemo/Parent.vue'
 import MouseDemo from '../EventComponents/MouseDemo.vue';
+import UseTimer from './useTimer.vue';
 
 const props = defineProps(['foo'])
 onMounted(() => {
@@ -189,6 +207,11 @@ onMounted(() => {
   console.log(`prop.foo=${props.foo === undefined ? '空' : props.foo}`)
 
 })
+const startIndex = ref(0)
+var timer = setInterval(() => {
+  startIndex.value++
+}, 10)
+
 
 const number1 = ref(0)
 const number2 = ref(0)
@@ -230,6 +253,8 @@ const options = ref([
   { value: '选项4', label: '龙须面' },
   { value: '选项5', label: '北京烤鸭' },
 ])
+
+const imgUrl = ref('https://www.epdent.cn/img/logo.KBL4LQEG.png')
 
 const btnAdd = () => {
   count.value++;

@@ -8,6 +8,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue' // 官方图标�
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import lazy from './js/lazy.js'
 
 const app = createApp(App)
 
@@ -22,7 +23,9 @@ for (const [name, component] of Object.entries(ElementPlusIconsVue)) {
 //组织全局指令
 app.directive('focus', {
   mounted(el) {
-    el.focus()
+    const input = el.matches('input, textarea') ? el : el.querySelector('input, textarea')
+    input?.focus()
   },
 })
+app.directive('lazy', lazy)
 app.mount('#app')

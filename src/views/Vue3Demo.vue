@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, defineAsyncComponent } from 'vue'
 import demo1 from '../components/demoComponents/demo1.vue'
 import formDemo from '../components/demoComponents/formDemo.vue'
 import { ElMessageBox, ElMessage } from 'element-plus';
@@ -7,6 +7,9 @@ import Loading from '../components/loading.vue';
 
 const pageContent = ref(null)
 const isLoading = ref(false)
+const LoadingVue = defineAsyncComponent(() =>
+  import('../components/loading.vue')
+)
 
 onMounted(async () => {
   await nextTick()
@@ -67,7 +70,8 @@ async function demoLoading() {
 
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
       <el-button @click="demoLoading">test加载中</el-button>
-      <Loading :show="isLoading" text="... 数据加载中 ..." />
+      <!-- <Loading :show="isLoading" text="... 数据加载中 ..." /> -->
+      <LoadingVue :show="isLoading" text="... 数据加载中 ..." />
     </p>
 
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">

@@ -13,8 +13,8 @@ const REMEMBER_KEY = 'pc-vue-demo-remember'
 
 // 登录表单数据
 const form = reactive({
-  username: '',
-  password: '',
+  username: 'admin',
+  password: '123456',
 })
 
 // "记住我"开关，初始值从 localStorage 读取（上次是否勾选过）
