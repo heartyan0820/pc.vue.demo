@@ -187,6 +187,36 @@
       <p>
         <UseTimer />
       </p>
+      <p>
+        <br />
+        <el-tabs v-model="activeName" @tab-click="handleClick">
+          <el-tab-pane label="User" name="first">User</el-tab-pane>
+          <el-tab-pane label="Config" name="second">Config</el-tab-pane>
+          <el-tab-pane label="Role" name="third">Role</el-tab-pane>
+          <el-tab-pane label="Task" name="fourth">Task</el-tab-pane>
+        </el-tabs>
+      </p>
+
+      <p>
+        <br />
+        <el-menu :default-active="activeIndex" class="el-menu-demo" mode="horizontal" @select="handleSelect">
+          <el-menu-item index="1"><router-link to="/orders">首页</router-link></el-menu-item>
+          <el-menu-item index="2"><router-link to="/orders2">404</router-link></el-menu-item>
+          <el-menu-item index="3">Orders</el-menu-item>
+          <el-sub-menu index="0">
+            <template #title>Workspace</template>
+            <el-menu-item index="2-1">item one</el-menu-item>
+            <el-menu-item index="2-2">item two</el-menu-item>
+            <el-menu-item index="2-3">item three</el-menu-item>
+            <el-sub-menu index="2-4">
+              <template #title>item four</template>
+              <el-menu-item index="2-4-1">item one</el-menu-item>
+              <el-menu-item index="2-4-2">item two</el-menu-item>
+              <el-menu-item index="2-4-3">item three</el-menu-item>
+            </el-sub-menu>
+          </el-sub-menu>
+        </el-menu>
+      </p>
     </div>
 
     </p>
@@ -200,6 +230,7 @@ import { ref, watch, defineProps, onMounted } from 'vue'
 import Parent from '../PropsDemo/Parent.vue'
 import MouseDemo from '../EventComponents/MouseDemo.vue';
 import UseTimer from './useTimer.vue';
+import { useRoute } from 'vue-router';
 
 const props = defineProps(['foo'])
 onMounted(() => {

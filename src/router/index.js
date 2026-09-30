@@ -7,6 +7,7 @@ import OrderList from '../views/OrderList.vue'
 import DataStats from '../views/DataStats.vue'
 import LoginView from '../views/LoginView.vue'
 import Vue3Demo from '../views/Vue3Demo.vue'
+import NotFound from '../views/NotFound.vue'
 
 const router = createRouter({
   // hash 模式：URL 中带 #（例如 /#/orders），本地开发最简单
@@ -50,6 +51,12 @@ const router = createRouter({
           meta: { title: 'Vue3Demo' },
         },
       ],
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'notFound',
+      component: NotFound,
+      meta: { title: 'NotFound' },
     },
   ],
 })

@@ -15,7 +15,7 @@ onMounted(async () => {
   await nextTick()
   const scrollContainer = pageContent.value?.closest('.el-main')
   if (scrollContainer) {
-    //scrollContainer.scrollTop = scrollContainer.scrollHeight
+    scrollContainer.scrollTop = scrollContainer.scrollHeight + 100
   }
 
   if (sessionStorage.getItem('refresh_success') === '1') {
@@ -77,6 +77,8 @@ async function demoLoading() {
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
 
     </p>
+
+    <el-backtop target=".el-main" :right="30" :bottom="30" :visibility-height="200" />
   </div>
 </template>
 
