@@ -22,14 +22,14 @@ function setupPermission() {
     "/v",
     "/doc",
     "/wpfxd",
-    "/wpfup"
+    "/wpfup",
   ];
   router.beforeEach(async (to, from, next) => {
     const isMobileDevice = isMobile();
     const isWeChatPCD = isWeChatPC();
     if (isMobileDevice && isWeChatPCD == false) {
-      window.location.href = "https://h5.epdent.cn/";
-      return;
+      // window.location.href = "https://h5.epdent.cn/";
+      // return;
     }
     NProgress.start();
     const isLogin = !!getAccessToken();
@@ -106,9 +106,8 @@ function hasAuth(value, type = "button") {
     return true;
   }
   const auths = type === "button" ? perms : roles;
-  return typeof value === "string" ? auths.includes(value) : value.some((perm) => auths.includes(perm));
+  return typeof value === "string"
+    ? auths.includes(value)
+    : value.some((perm) => auths.includes(perm));
 }
-export {
-  hasAuth,
-  setupPermission
-};
+export { hasAuth, setupPermission };
