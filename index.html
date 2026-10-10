@@ -8,7 +8,10 @@
   </head>
   <body>
     <div id="app"></div>
-    <!-- <script type="module" src="/src/main.js"></script> -->
-    <script type="module" src="ecmweb/src/main.js"></script>
+    <!-- app1 入口：只引用本项目 /src/main.js。
+         千万不要改成 ecmweb/src/main.js —— 5173 的 @ 会指向 pc.vue.demo/src，
+         加载 ecmweb 后会爆 "Failed to resolve @/store/@/plugins"。
+         想开 ecmweb 请用 pnpm dev:ecmweb 或 pnpm dev:all。 -->
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

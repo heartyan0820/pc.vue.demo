@@ -2,12 +2,54 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ECM Web - 第二个桌面项目</title>
+    <title>易齿盟</title>
+    <meta name="keywords" content="易齿盟|e齿盟|E齿盟众硕|众硕慧通">
+    <meta name="description" content="易齿盟是一个为口腔门诊提供整体数字化解决方案的平台.我们提供简便快捷的电子定单系统,先进的即时3D数字云会诊平台,专业的专家级技师技术支持,义齿从下单到生产的全流程监督.作为一站式服务平台，我们用最先进的技术和最优质的服务,全流程赋能口腔门诊.">
+    <script type="module" src="/images/JsBarcode.js"></script>
   </head>
+
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <div id="app">
+      <div class="loader"></div>
+    </div>
   </body>
+  <script type="module" src="/src/main.js"></script>
+  <style>
+   html, body {
+  width: 100%;
+  min-width: fit-content; /* 关键：处理横向滚动 */
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+    .loader {
+      --d: 22px;
+      width: 4px;
+      height: 4px;
+      color: #254fb0;
+      border-radius: 50%;
+      box-shadow:
+        calc(1 * var(--d)) calc(0 * var(--d)) 0 0,
+        calc(0.707 * var(--d)) calc(0.707 * var(--d)) 0 1px,
+        calc(0 * var(--d)) calc(1 * var(--d)) 0 2px,
+        calc(-0.707 * var(--d)) calc(0.707 * var(--d)) 0 3px,
+        calc(-1 * var(--d)) calc(0 * var(--d)) 0 4px,
+        calc(-0.707 * var(--d)) calc(-0.707 * var(--d)) 0 5px,
+        calc(0 * var(--d)) calc(-1 * var(--d)) 0 6px;
+      animation: l27 1s infinite steps(8);
+    }
+
+    @keyframes l27 {
+      100% {
+        transform: rotate(1turn);
+      }
+    }
+  </style>
 </html>

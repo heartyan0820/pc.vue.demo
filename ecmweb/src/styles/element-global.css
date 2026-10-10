@@ -1,0 +1,94 @@
+/* 覆盖Element UI所有组件的基础字体大小 */
+/* .el-button, .el-input, .el-select, .el-table, .el-form, 
+.el-dialog, .el-card, .el-menu, .el-breadcrumb, .el-pagination,
+.el-tag, .el-alert, .el-tooltip, .el-popover, .el-date-picker {
+  font-size: 18px !important;
+} */
+/* 覆盖输入框、下拉框的输入文字大小 
+.el-input__inner, .el-select__input {
+  font-size: 16px !important;
+}*/
+/* 覆盖表格单元格文字 
+.el-table__cell {
+  font-size: 16px !important;
+}
+/* 覆盖弹窗、卡片的标题文字 */
+.el-dialog__title, .el-card__header {
+  font-size: 20px !important;
+}
+.el-tree {
+    --el-tree-node-content-height: 35px !important;
+    --el-tree-node-hover-bg-color: var(--el-fill-color-light)
+    --el-tree-text-color: var(--el-text-color-regular);
+    --el-tree-expand-icon-color: var(--el-text-color-placeholder);
+    background: var(--el-fill-color-blank);
+    color: var(--el-tree-text-color);
+    cursor: default;
+    font-size: var(--el-font-size-base);
+    position: relative;
+}
+.el-tree-select__popper .el-select-dropdown__item {
+  background: transparent !important;
+  flex: 1;
+  height: 39px !important;
+  line-height: 39px !important;
+  padding-left: 0;
+  font-size: 16px;
+  --el-tree-node-content-height: 39px;
+}
+.el-tree-select__popper .el-select-dropdown__item {
+    background: transparent!important;
+    flex: 1;
+    height: 35px !important;
+    line-height: 35px !important;
+    padding-left: 0;
+    --el-tree-node-content-height: 39px;
+}
+.el-pagination {
+  --el-text-color-regular:#000000 !important;
+}
+/* 隐藏预览相关的所有按钮（包括切换、关闭、指示器） */
+.el-image-viewer__prev {
+  display: none !important;
+}
+/* 隐藏预览关闭按钮（如果有） */
+.el-image-viewer__next{
+  display: none !important;
+}
+::-webkit-scrollbar {
+  height: 12px; /* 横向滚动条高度 */
+  width: 3px;  /* 纵向滚动条宽度 */
+  cursor: pointer;
+}
+
+/* 2. 滚动条滑块（核心美化） */
+::-webkit-scrollbar-thumb {
+  background-color: var(--el-color-border-lighter, #c5d1dc); /* 复用 Element 变量，适配主题 */
+  border-radius: 3px; /* 和 Element 按钮圆角一致 */
+  transition: background-color 0.2s ease;
+}
+
+/* 3. 滑块 hover/active 交互 */
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--el-color-border, #d1d5db); /* hover 加深，符合 Element 交互逻辑 */
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--el-color-primary-light-3, #94a3b8); /* 按下用主题色浅版 */
+}
+
+/* 4. 滚动条轨道（背景） */
+::-webkit-scrollbar-track {
+  background-color: var(--el-color-bg-page, #f9fafb); /* 复用 Element 页面背景色 */
+  border-radius: 3px;
+}
+
+/* 5. 兼容火狐浏览器 */
+* {
+  scrollbar-color: var(--el-color-border-lighter) var(--el-color-bg-page); /* 滑块 + 轨道颜色 */
+}
+
+/* 6. 针对 Flex 横向滚动的特殊优化（可选） */
+.flex-scroll-container {
+  padding-bottom: 8px; /* 给横向滚动条预留间距，避免贴边 */
+  overflow-y: hidden !important; /* 强制隐藏纵向滚动条 */
+}
