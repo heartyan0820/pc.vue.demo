@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:app1": "vite",
     "dev:ecmweb": "pnpm -C ecmweb dev",
+    "dev:all": "concurrently -n app1,ecmweb -c blue,green \"pnpm dev:app1\" \"pnpm dev:ecmweb\"",
     "build": "vite build",
     "build:app1": "vite build",
     "build:ecmweb": "pnpm -C ecmweb build",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-vue": "^5.2.4",
+    "concurrently": "^10.0.6",
     "vite": "^6.4.3"
   }
 }
