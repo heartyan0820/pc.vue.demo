@@ -69,7 +69,7 @@ async function demoLoading() {
     </p>
 
     <p style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
-      <el-button @click="demoLoading">test加载中</el-button>
+      <el-button @click="demoLoading" style="background-color: aqua;color: red;">test一下加载中</el-button>
       <!-- <Loading :show="isLoading" text="... 数据加载中 ..." /> -->
       <LoadingVue :show="isLoading" text="... 数据加载中 ..." />
     </p>
