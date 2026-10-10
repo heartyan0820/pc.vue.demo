@@ -14,6 +14,11 @@ dist-ssr
 /src-tauri/target/
 /src-tauri/gen/schemas/
 
+# ecmweb 下的 pnpm "构建脚本审批"占位文件（只有 allowBuilds，没有 packages 字段）。
+# 千万别提交：pnpm 9 会把它当 workspace 清单读，直接报
+# "packages field missing or empty"，导致 GitHub Actions 部署失败。
+ecmweb/pnpm-workspace.yaml
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
