@@ -33,33 +33,33 @@ jobs:
           version: 9.15.9
 
       # 3. 安装 Node.js 并缓存 pnpm 依赖
-      #    缓存以 simpleweb 的 lockfile 为准（本项目不是 pnpm workspace，
-      #    simpleweb 是独立子包，有自己的 pnpm-lock.yaml）
+      #    缓存以 ecmweb 的 lockfile 为准（本项目不是 pnpm workspace，
+      #    ecmweb 是独立子包，有自己的 pnpm-lock.yaml）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: simpleweb/pnpm-lock.yaml
+          cache-dependency-path: ecmweb/pnpm-lock.yaml
 
-      # 4. 安装 simpleweb 依赖
-      #    注意：必须在 simpleweb 目录下安装。根目录的 pnpm install 只会装
-      #    app1 的依赖，装不到 simpleweb（它不是 workspace 成员）
+      # 4. 安装 ecmweb 依赖
+      #    注意：必须在 ecmweb 目录下安装。根目录的 pnpm install 只会装
+      #    app1 的依赖，装不到 ecmweb（它不是 workspace 成员）
       - name: Install dependencies
-        run: pnpm -C simpleweb install --frozen-lockfile
+        run: pnpm -C ecmweb install --frozen-lockfile
 
-      # 5. 构建 simpleweb 生产包，输出到 simpleweb/dist/
+      # 5. 构建 ecmweb 生产包，输出到 ecmweb/dist/
       #    （原来是 `pnpm build`，构建的是根目录 app1 项目 → dist/，
       #     所以 Pages 上一直是"订单管理系统"。要换回 app1 就把下面
       #     这行改回 `pnpm build`，path 改回 dist）
       - name: Build
-        run: pnpm -C simpleweb build
+        run: pnpm -C ecmweb build
 
       # 6. 把构建产物上传为一个 artifact（中间产物）
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: simpleweb/dist
+          path: ecmweb/dist
 
       # 7. 部署到 GitHub Pages
       - name: Deploy to GitHub Pages
