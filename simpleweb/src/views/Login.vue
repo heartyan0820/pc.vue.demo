@@ -26,7 +26,7 @@ import { useUserStore } from '../stores/user'
 const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
-const form = reactive({ username: '', password: '' })
+const form = reactive({ username: 'admin', password: '123456' })
 
 async function handleLogin() {
   if (!form.username || !form.password) {

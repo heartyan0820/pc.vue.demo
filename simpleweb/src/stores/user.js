@@ -3,7 +3,7 @@ import { ref } from "vue";
 
 export const useUserStore = defineStore("user", () => {
   const token = ref(localStorage.getItem("token") || "");
-  const userInfo = ref(Json.parse(localStorage.getItem("userInfo")) || "null");
+  const userInfo = ref(JSON.parse(localStorage.getItem("userInfo") || "null"));
 
   async function login(form) {
     // const { data } = await request.post('/api/login', form)
