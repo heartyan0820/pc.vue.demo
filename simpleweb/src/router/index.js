@@ -10,6 +10,8 @@ const routes = [
       { path: "users", component: () => import("../views/UserList.vue") },
     ],
   },
+  { path: "/404", component: () => import("../views/error/404.vue") },
+  { path: "/:pathMatch(.*)*", redirect: "/404" },
 ];
 
 const router = createRouter({
@@ -18,7 +20,7 @@ const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  if (to.path !== "/login" && !localStorage.getItem("token")) {
+  if (!["/login", "/404"].includes(to.path) && !localStorage.getItem("token")) {
     return "/login";
   }
 });
