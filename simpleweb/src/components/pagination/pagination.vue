@@ -56,4 +56,17 @@ const pageSizeModel = computed({
   justify-content: flex-end;
   margin-top: 20px;
 }
+
+@media (max-width: 767px) {
+  .pagination {
+    justify-content: center;
+  }
+
+  .pagination :deep(.el-pagination) {
+    height: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 8px;
+  }
+}
 </style>

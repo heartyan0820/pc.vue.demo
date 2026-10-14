@@ -53,7 +53,8 @@ async function handleLogin() {
 }
 
 .login-box :deep(.el-card) {
-  width: 360px;
+  width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
   padding: 10px;
 }
 </style>

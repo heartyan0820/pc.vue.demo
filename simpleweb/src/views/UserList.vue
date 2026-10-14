@@ -1,11 +1,11 @@
 <template>
   <el-card>
-    <div style="margin-bottom:16px;display:flex;justify-content:space-between;">
-      <div>
-        <el-input v-model="query.name" placeholder="按姓名搜索" style="width:200px;margin-right:10px;" clearable />
+    <div class="list-toolbar">
+      <div class="filters">
+        <el-input v-model="query.name" class="filter-name" placeholder="按姓名搜索" clearable />
         <!--开始结束时间-->
-        <el-date-picker v-model="query.startDate" type="date" placeholder="开始时间" style="margin-right:10px;" />
-        <el-date-picker v-model="query.endDate" type="date" placeholder="结束时间" style="margin-right:10px;" />
+        <el-date-picker v-model="query.startDate" class="filter-date" type="date" placeholder="开始时间" />
+        <el-date-picker v-model="query.endDate" class="filter-date" type="date" placeholder="结束时间" />
 
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
@@ -14,29 +14,31 @@
       </div>
     </div>
 
-    <el-table :data="list" v-loading="loading" border>
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="name" label="姓名" />
-      <el-table-column prop="phone" label="手机号" />
-      <el-table-column prop="email" label="邮箱" />
-      <el-table-column label="创建时间" width="180">
-        <template #default="{ row }">
-          {{ row.created_at || '2024-01-01 10:00:00' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180">
-        <template #default="{ row }">
-          <el-button size="small" @click="openDialog(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="del(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="table-wrap">
+      <el-table :data="list" class="users-table" border>
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="姓名" />
+        <el-table-column prop="phone" label="手机号" />
+        <el-table-column prop="email" label="邮箱" />
+        <el-table-column label="创建时间" width="180">
+          <template #default="{ row }">
+            {{ row.created_at || '2024-01-01 10:00:00' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180">
+          <template #default="{ row }">
+            <el-button size="small" @click="openDialog(row)">编辑</el-button>
+            <el-button size="small" type="danger" @click="del(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <Pagination v-model:current-page="page" v-model:page-size="size" :total="total" @current-change="loadData"
       @size-change="loadData" />
 
     <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑用户' : '新增用户'" width="400px">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑用户' : '新增用户'" width="min(400px, calc(100vw - 24px))">
       <el-form :model="form" label-width="60px">
         <el-form-item label="姓名">
           <el-input v-model="form.name" />
@@ -112,3 +114,48 @@ function del(row) {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.filter-name {
+  width: 200px;
+}
+
+.filter-date {
+  width: 220px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.users-table {
+  min-width: 720px;
+}
+
+@media (max-width: 767px) {
+  .list-toolbar {
+    flex-direction: column;
+  }
+
+  .filters,
+  .filter-name,
+  .filter-date {
+    width: 100%;
+  }
+}
+</style>
