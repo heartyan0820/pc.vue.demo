@@ -3,7 +3,18 @@
     <el-aside width="200px" style="background:#1d3557;color:#fff;">
       <h3 style="padding:20px;">后台管理</h3>
       <el-menu router background-color="#1d3557" text-color="#fff" active-text-color="#409eff">
-        <el-menu-item index="/users">用户列表</el-menu-item>
+        <el-menu-item index="/orders">
+          <el-icon>
+            <List />
+          </el-icon>
+          <span>订单列表</span>
+        </el-menu-item>
+        <el-menu-item index="/users">
+          <el-icon>
+            <User />
+          </el-icon>
+          <span>用户列表</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -22,7 +33,7 @@
         <router-view />
       </el-main>
       <el-footer
-        style="text-align:center;color:#999;font-size:12px;border-top:1px solid #ccc;display:flex;flex-direction: column;justify-content: center;">
+        style="text-align:center;color:#999;font-size:12px;border-top:0px solid #ccc;display:flex;flex-direction: column;justify-content: center;">
         <span>© 2000 - {{ new Date().getFullYear() }} SimpleWeb. All rights reserved.</span>
       </el-footer>
     </el-container>
@@ -34,7 +45,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ElFooter } from 'element-plus'
-import loginBackground from '@assets/images/commonImages/login-bg.jpg'
+import { List, User } from '@element-plus/icons-vue'
+import loginBackground from '@assets/images/commonImages/bj.png'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -54,10 +66,14 @@ function logout() {
 </script>
 
 <style scoped>
+:global(body) {
+  margin: 0;
+}
+
 .containerStyle {
   height: 100vh;
   background-repeat: no-repeat;
   background-position: center right;
-  background: url("@assets/images/commonImages/login-bg.jpg") no-repeat center right;
+  background: url("@assets/images/commonImages/bj.png") no-repeat center right;
 }
 </style>

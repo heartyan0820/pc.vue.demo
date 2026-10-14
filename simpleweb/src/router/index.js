@@ -1,17 +1,35 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 
 const routes = [
-  { path: "/login", component: () => import("../views/Login.vue") },
   {
+    name: "login",
+    path: "/login",
+    component: () => import("../views/Login.vue"),
+  },
+  {
+    name: "layout",
     path: "/",
     component: () => import("../views/Layout.vue"),
-    redirect: "/users",
+    redirect: "/orders",
     children: [
-      { path: "users", component: () => import("../views/UserList.vue") },
+      {
+        name: "orders",
+        path: "orders",
+        component: () => import("../views/OrderList.vue"),
+      },
+      {
+        name: "users",
+        path: "users",
+        component: () => import("../views/UserList.vue"),
+      },
+      {
+        name: "404",
+        path: "/404",
+        component: () => import("../views/error/404.vue"),
+      },
     ],
   },
-  { path: "/404", component: () => import("../views/error/404.vue") },
-  { path: "/:pathMatch(.*)*", redirect: "/404" },
+  { name: "not-found", path: "/:pathMatch(.*)*", redirect: "/404" },
 ];
 
 const router = createRouter({
