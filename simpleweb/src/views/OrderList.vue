@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import Pagination from '../components/pagination/pagination.vue'
 
 const list = ref([])
@@ -8,6 +8,7 @@ const loading = ref(false)
 const page = ref(1)
 const size = ref(10)
 const total = ref(0)
+const query = ref({ user: '', startDate: null, endDate: null })
 
 function loadData() {
   loading.value = true
@@ -39,9 +40,15 @@ onMounted(() => {
 <template>
   <div>
     <el-card>
-      <div style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <span>订单列表</span>
-        <el-button type="primary" @click="loadData">刷新</el-button>
+      <div style="margin-bottom:16px;display:flex;justify-content:space-between;">
+        <div>
+          <el-input v-model="query.user" placeholder="按姓名搜索" style="width:200px;margin-right:10px;" clearable />
+          <!--开始结束时间-->
+          <el-date-picker v-model="startDate" type="date" placeholder="开始时间" style="margin-right:10px;" />
+          <el-date-picker v-model="endDate" type="date" placeholder="结束时间" style="margin-right:10px;" />
+
+          <el-button type="primary" @click="loadData">查询</el-button>
+        </div>
       </div>
       <el-table :data="list" v-loading="loading" style="width: 100%">
         <el-table-column prop="id" label="订单ID" width="100"></el-table-column>

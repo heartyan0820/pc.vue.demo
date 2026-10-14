@@ -25,7 +25,7 @@
             style="width:32px;height:32px;border-radius:50%;margin:0px 10px;border:1px solid #ccc;" />
           <div style="border:0px solid #ccc;">
             {{ userStore.userInfo?.name }}（{{ userStore.userInfo?.role }}）
-            <el-button type="text" style="border:0px solid #ccc;" @click="logout">退出登录</el-button>
+            <el-button link style="border:0px solid #ccc;" @click="logout">退出登录</el-button>
           </div>
         </div>
       </el-header>
