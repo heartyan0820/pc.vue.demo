@@ -15,11 +15,13 @@ const routes = [
       {
         name: "orders",
         path: "orders",
+        meta: { title: "订单管理" },
         component: () => import("../views/OrderList.vue"),
       },
       {
         name: "users",
         path: "users",
+        meta: { title: "用户管理" },
         component: () => import("../views/UserList.vue"),
       },
       {

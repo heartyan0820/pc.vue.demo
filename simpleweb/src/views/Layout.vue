@@ -1,8 +1,9 @@
 <template>
   <el-container class="containerStyle" :style="containerStyle">
-    <el-aside width="200px" style="background:#1d3557;color:#fff;">
-      <h3 style="padding:20px;">后台管理</h3>
-      <el-menu router background-color="#1d3557" text-color="#fff" active-text-color="#409eff">
+    <el-aside class="sidebar" :width="menuCollapsed ? '64px' : '200px'" style="background:#1d3557;color:#fff;">
+      <h3 class="sidebar-title">{{ menuCollapsed ? '管' : '后台管理' }}</h3>
+      <el-menu class="sidebar-menu" :collapse="menuCollapsed" router background-color="#1d3557" text-color="#fff"
+        active-text-color="#409eff">
         <el-menu-item index="/orders" class="sidebar-item">
           <el-icon>
             <List />
@@ -18,12 +19,20 @@
       </el-menu>
     </el-aside>
     <el-container>
-      <el-header style="display:flex;justify-content:space-between;align-items:center;">
-        <span class="header-title">首页</span>
-        <div style="display:flex;align-items:center;cursor:pointer;">
+      <el-header class="page-header">
+        <div class="header-left">
+          <el-button class="collapse-toggle" link aria-label="折叠或展开导航" @click="isCollapsed = !isCollapsed">
+            <el-icon>
+              <Expand v-if="menuCollapsed" />
+              <Fold v-else />
+            </el-icon>
+          </el-button>
+          <span class="header-title">{{ route.meta.title || '首页' }}</span>
+        </div>
+        <div class="user-area">
           <img src="@assets/images/commonImages/ai.png" alt="头像"
             style="width:32px;height:32px;border-radius:50%;margin:0px 10px;border:1px solid #ccc;" />
-          <div style="border:0px solid #ccc;">
+          <div>
             {{ userStore.userInfo?.name }}（{{ userStore.userInfo?.role }}）
             <el-button link style="border:0px solid #ccc;" @click="logout">退出登录</el-button>
           </div>
@@ -41,16 +50,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ElFooter } from 'element-plus'
-import { List, User } from '@element-plus/icons-vue'
+import { Expand, Fold, List, User } from '@element-plus/icons-vue'
 import loginBackground from '@assets/images/commonImages/bj.png'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+const isCollapsed = ref(false)
+const isMobile = ref(false)
+const menuCollapsed = computed(() => isCollapsed.value && !isMobile.value)
 
+let mobileMediaQuery
 
 const containerStyle = {
   height: '100vh',
@@ -58,6 +72,20 @@ const containerStyle = {
   backgroundPosition: 'center right',
   backgroundImage: `url(${loginBackground})`,
 }
+
+function updateMobileState(event) {
+  isMobile.value = event.matches
+}
+
+onMounted(() => {
+  mobileMediaQuery = window.matchMedia('(max-width: 767px)')
+  isMobile.value = mobileMediaQuery.matches
+  mobileMediaQuery.addEventListener('change', updateMobileState)
+})
+
+onUnmounted(() => {
+  mobileMediaQuery?.removeEventListener('change', updateMobileState)
+})
 
 function logout() {
   userStore.logout()
@@ -75,6 +103,45 @@ function logout() {
   background-repeat: no-repeat;
   background-position: center right;
   background: url("@assets/images/commonImages/bj.png") no-repeat center right;
+}
+
+.sidebar {
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+.sidebar-title {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sidebar-menu {
+  border-right: 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 0;
+}
+
+.header-left,
+.user-area {
+  display: flex;
+  align-items: center;
+}
+
+.header-left {
+  gap: 12px;
+}
+
+.collapse-toggle {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
 }
 
 .content-main {
@@ -99,6 +166,7 @@ function logout() {
     margin: 0;
     padding: 10px 16px !important;
     font-size: 16px;
+    text-align: left;
   }
 
   .containerStyle> :deep(.el-aside .el-menu) {
@@ -123,6 +191,10 @@ function logout() {
   .containerStyle>.el-container> :deep(.el-header) {
     height: 56px;
     padding: 0 12px;
+  }
+
+  .collapse-toggle {
+    display: none;
   }
 
   .containerStyle>.el-container>.content-main {
