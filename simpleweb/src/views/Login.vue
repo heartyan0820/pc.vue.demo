@@ -26,7 +26,7 @@ import { useUserStore } from '../stores/user'
 const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: '123456' })
+const form = reactive({ username: 'sh01', password: '666999' })
 
 async function handleLogin() {
   if (!form.username || !form.password) {
@@ -37,6 +37,10 @@ async function handleLogin() {
     await userStore.login(form)
     ElMessage.success('登录成功')
     router.push({ name: 'orders' })
+  } catch (error) {
+    if (error.message === '登录接口未返回 token') {
+      ElMessage.error(error.message)
+    }
   } finally {
     loading.value = false
   }

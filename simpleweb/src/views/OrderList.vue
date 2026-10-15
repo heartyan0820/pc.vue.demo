@@ -1,88 +1,270 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { Refresh, Search } from '@element-plus/icons-vue'
 import Pagination from '../components/pagination/pagination.vue'
+import request from '../utils/request'
+import { useUserStore } from '../stores/user'
 
+const userStore = useUserStore()
 const list = ref([])
+const columns = ref([])
+const statuses = ref([])
 const loading = ref(false)
-
 const page = ref(1)
 const size = ref(10)
 const total = ref(0)
-const query = ref({ user: '', startDate: null, endDate: null })
+const updatedAt = ref('')
+const queryParams = reactive({
+  keywords: '',
+  day: 'no',
+  createTime: null,
+  pageIndex: 1,
+  pageSize: 10,
+  state: '',
+  substituteType: -1,
+})
 
-function loadData() {
-  loading.value = true
-  setTimeout(() => {
-    // 真实项目：const data = await request.get('/api/orders', { params: { page: page.value } })
-    list.value = [
-      { id: 1, user: '张三', amount: 100, status: '已支付', created_at: '2024-01-01 10:00:00' },
-      { id: 2, user: '李四', amount: 200, status: '未支付', created_at: '2024-01-02 11:00:00' }
-    ]
-    list.value = list.value.concat(
-      Array.from({ length: 8 }, (_, i) => ({
-        id: i + 3,
-        user: `用户${i + 3}`,
-        amount: (i + 1) * 50,
-        status: i % 2 === 0 ? '已支付' : '未支付',
-        created_at: `2024-01-${(i + 3).toString().padStart(2, '0')} 12:00:00`
-      }))
-    )
-    total.value = 50
-    loading.value = false
-  }, 300)
+const quickDateOptions = [
+  { label: '不限', value: 'no' },
+  { label: '今天', value: 'oneDay' },
+  { label: '3天', value: 'threeDay' },
+  { label: '7天', value: 'sevenDay' },
+  { label: '30天', value: 'thirtyDay' },
+]
+
+const fallbackColumns = [
+  { label: '订单号', value: 'orderNo', width: 150 },
+  { label: '患者', value: 'patientName', width: 120 },
+  { label: '医生', value: 'doctorName', width: 120 },
+  { label: '状态', value: 'state', width: 120 },
+  { label: '创建时间', value: 'createTime', width: 180 },
+]
+
+const displayColumns = computed(() => columns.value.length ? columns.value : fallbackColumns)
+
+function getToday() {
+  const date = new Date()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
 }
 
-onMounted(() => {
+function getDaysAgo(days) {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+function handleQuickDate(value) {
+  const daysByOption = { oneDay: 0, threeDay: 3, sevenDay: 7, thirtyDay: 30 }
+  queryParams.createTime = value === 'no' ? null : [getDaysAgo(daysByOption[value]), getToday()]
+}
+
+function handleDateRangeChange(value) {
+  queryParams.createTime = value || null
+  queryParams.day = 'no'
+}
+
+async function loadData() {
+  loading.value = true
+  queryParams.pageIndex = page.value
+  queryParams.pageSize = size.value
+
+  try {
+    const members = userStore.userInfo?.members
+    const activeMember = Array.isArray(members) ? members[0] : members
+    const data = await request.post('/admin/order/querypage', {
+      ...queryParams,
+      cacheTime: new Date().toLocaleDateString('zh-CN'),
+      orgRoleCodes: activeMember?.orgRoleCodes,
+    })
+
+    list.value = Array.isArray(data?.lists) ? data.lists : []
+    columns.value = Array.isArray(data?.fieldData) ? data.fieldData : []
+    statuses.value = Array.isArray(data?.xData) ? data.xData : []
+    total.value = Number(data?.total) || 0
+    updatedAt.value = new Date().toLocaleString('zh-CN', { hour12: false })
+  } catch {
+    list.value = []
+    columns.value = []
+    statuses.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+function searchOrders() {
+  page.value = 1
+  queryParams.pageIndex = 1
   loadData()
-})
+}
+
+function selectStatus(status) {
+  queryParams.state = status.state
+  page.value = 1
+  queryParams.pageIndex = 1
+  loadData()
+}
+
+function resetFilters() {
+  queryParams.keywords = ''
+  queryParams.day = 'no'
+  queryParams.createTime = null
+  queryParams.state = ''
+  queryParams.substituteType = -1
+  page.value = 1
+  queryParams.pageIndex = 1
+  loadData()
+}
+
+function refreshOrders() {
+  loadData()
+}
+
+onMounted(loadData)
 </script>
 
 <template>
-  <div>
-    <el-card>
-      <div class="list-toolbar">
-        <div class="filters">
-          <el-input v-model="query.user" class="filter-name" placeholder="按姓名搜索" clearable />
-          <!--开始结束时间-->
-          <el-date-picker v-model="query.startDate" class="filter-date" type="date" placeholder="开始时间" />
-          <el-date-picker v-model="query.endDate" class="filter-date" type="date" placeholder="结束时间" />
+  <el-card class="orders-card">
+    <div class="page-heading">
+      <div>
+        <h2>订单管理</h2>
+        <span v-if="updatedAt" class="updated-at">最近刷新：{{ updatedAt }}</span>
+      </div>
+      <el-button circle aria-label="刷新订单" @click="refreshOrders">
+        <el-icon>
+          <Refresh />
+        </el-icon>
+      </el-button>
+    </div>
 
-          <el-button type="primary" @click="loadData">查询</el-button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <el-table :data="list" v-loading="loading" class="orders-table" style="width: 100%">
-          <el-table-column prop="id" label="订单ID" width="100"></el-table-column>
-          <el-table-column prop="user" label="用户" width="150"></el-table-column>
-          <el-table-column prop="amount" label="金额" width="100"></el-table-column>
-          <el-table-column prop="status" label="状态" width="100"></el-table-column>
-          <el-table-column prop="created_at" label="创建时间"></el-table-column>
-        </el-table>
-      </div>
-      <Pagination v-model:current-page="page" v-model:page-size="size" :total="total" @current-change="loadData"
-        @size-change="loadData" />
-    </el-card>
-  </div>
+    <div v-if="statuses.length" class="status-grid">
+      <button v-for="status in statuses" :key="status.state" class="status-card" type="button"
+        :style="{ backgroundColor: status.bgcolor, borderColor: queryParams.state === status.state ? status.color : 'transparent' }"
+        @click="selectStatus(status)">
+        <strong :style="{ color: status.color }">{{ status.value }}</strong>
+        <span>{{ status.name }}</span>
+      </button>
+    </div>
+
+    <div class="list-toolbar">
+      <el-input v-model="queryParams.keywords" class="filter-keyword" clearable placeholder="患者、医生、订单号、诊所"
+        @keyup.enter="searchOrders" />
+      <el-select v-model="queryParams.day" class="filter-day" @change="handleQuickDate">
+        <el-option v-for="option in quickDateOptions" :key="option.value" :label="option.label" :value="option.value" />
+      </el-select>
+      <el-date-picker v-model="queryParams.createTime" class="filter-range" type="daterange" unlink-panels
+        range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" value-format="YYYY-MM-DD"
+        @change="handleDateRangeChange" />
+      <el-button type="primary" @click="searchOrders">
+        <el-icon>
+          <Search />
+        </el-icon>
+        查询
+      </el-button>
+      <el-button @click="resetFilters">重置</el-button>
+    </div>
+
+    <div class="table-wrap">
+      <el-table :data="list" v-loading="loading" class="orders-table" stripe border>
+        <el-table-column v-for="column in displayColumns" :key="column.value || column.prop || column.label"
+          :prop="column.value || column.prop" :label="column.label" :width="column.width"
+          :min-width="column.width ? undefined : 100" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="column.label === '状态'" class="status-label"
+              :style="{ color: row.fontColor, backgroundColor: row.backColor }">
+              {{ row[column.value || column.prop] }}
+            </span>
+            <span v-else>{{ row[column.value || column.prop] ?? '-' }}</span>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty :description="loading ? '正在加载订单' : '暂无订单数据'" />
+        </template>
+      </el-table>
+    </div>
+
+    <Pagination v-model:current-page="page" v-model:page-size="size" :total="total" @current-change="loadData"
+      @size-change="searchOrders" />
+  </el-card>
 </template>
 
 <style scoped>
-.list-toolbar {
-  margin-bottom: 16px;
-}
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.orders-card {
   min-width: 0;
 }
 
-.filter-name {
-  width: 200px;
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-.filter-date {
-  width: 220px;
+.page-heading h2 {
+  margin: 0;
+  color: #263445;
+  font-size: 18px;
+}
+
+.updated-at {
+  display: inline-block;
+  margin-top: 6px;
+  color: #8490a0;
+  font-size: 12px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.status-card {
+  display: flex;
+  min-height: 68px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.status-card strong {
+  font-size: 20px;
+}
+
+.status-card span {
+  color: #5f6c7b;
+  font-size: 12px;
+}
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.filter-keyword {
+  width: 240px;
+}
+
+.filter-day {
+  width: 100px;
+}
+
+.filter-range {
+  width: 280px;
 }
 
 .table-wrap {
@@ -91,14 +273,67 @@ onMounted(() => {
 }
 
 .orders-table {
-  min-width: 620px;
+  --el-table-header-bg-color: #5094f5;
+  --el-table-header-text-color: #fff;
+  --el-table-tr-bg-color: #fff;
+  --el-table-bg-color: #fff;
+  --el-table-border-color: rgba(255, 255, 255, 0.95);
+  --el-table-row-hover-bg-color: #90b3fa;
+}
+
+.orders-table :deep(.el-table__header th.el-table__cell) {
+  height: 40px;
+  padding: 0 5px;
+  border-right: 1px solid rgba(255, 255, 255, 0.95) !important;
+  background-color: #5094f5 !important;
+  color: #fff !important;
+  text-align: center;
+}
+
+.orders-table :deep(.el-table__header .cell) {
+  padding: 0 4px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+  text-align: center;
+  font-weight: 600;
+}
+
+.orders-table :deep(.el-table__body tr.el-table__row--striped > td.el-table__cell) {
+  background-color: #e9f0f5;
+}
+
+.orders-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background-color: #90b3fa !important;
+}
+
+.orders-table :deep(.el-table__body tr) {
+  height: 46px;
+}
+
+.status-label {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
 }
 
 @media (max-width: 767px) {
 
-  .filter-name,
-  .filter-date {
+  .list-toolbar {
+    align-items: stretch;
+  }
+
+  .filter-keyword,
+  .filter-day,
+  .filter-range {
     width: 100%;
+  }
+
+  .status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
