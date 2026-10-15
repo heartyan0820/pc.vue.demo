@@ -25,6 +25,12 @@ const routes = [
         component: () => import("../views/UserList.vue"),
       },
       {
+        name: "fileManage",
+        path: "file-manage",
+        meta: { title: "文件管理" },
+        component: () => import("../views/toolManages/fileManage.vue"),
+      },
+      {
         name: "404",
         path: "/404",
         component: () => import("../views/error/404.vue"),
