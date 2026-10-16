@@ -40,7 +40,25 @@ const fallbackColumns = [
   { label: '创建时间', value: 'createTime', width: 180 },
 ]
 
-const displayColumns = computed(() => columns.value.length ? columns.value : fallbackColumns)
+const displayColumns = computed(() => {
+  const source = columns.value.length ? columns.value : fallbackColumns
+
+  return source.map((column) => {
+    const widthMatch = String(column.width ?? '').trim().match(/^(\d+(?:\.\d+)?)(?:px)?$/i)
+    const width = widthMatch ? Number(widthMatch[1]) : undefined
+    const labelWidth = Array.from(String(column.label || '')).reduce(
+      (total, character) => total + (character.charCodeAt(0) > 255 ? 16 : 9),
+      16,
+    )
+    const requiredWidth = Math.max(width || 0, labelWidth)
+
+    return {
+      ...column,
+      tableWidth: width === undefined ? undefined : requiredWidth,
+      tableMinWidth: width === undefined ? Math.max(100, requiredWidth) : undefined,
+    }
+  })
+})
 
 function getToday() {
   const date = new Date()
@@ -123,7 +141,6 @@ function resetFilters() {
 function refreshOrders() {
   loadData()
 }
-
 onMounted(loadData)
 </script>
 
@@ -169,10 +186,15 @@ onMounted(loadData)
     </div>
 
     <div class="table-wrap">
-      <el-table :data="list" v-loading="loading" class="orders-table" stripe border>
+      <el-table :data="list" v-loading="loading" class="orders-table" height="100%" stripe border>
         <el-table-column v-for="column in displayColumns" :key="column.value || column.prop || column.label"
-          :prop="column.value || column.prop" :label="column.label" :width="column.width"
-          :min-width="column.width ? undefined : 100" show-overflow-tooltip>
+          :prop="column.value || column.prop" :label="column.label" :width="column.tableWidth"
+          :min-width="column.tableMinWidth" show-overflow-tooltip>
+          <template #header>
+            <el-tooltip :content="column.label" placement="top" :show-after="300">
+              <span class="column-header-label">{{ column.label }}</span>
+            </el-tooltip>
+          </template>
           <template #default="{ row }">
             <span v-if="column.label === '状态'" class="status-label"
               :style="{ color: row.fontColor, backgroundColor: row.backColor }">
@@ -187,18 +209,31 @@ onMounted(loadData)
       </el-table>
     </div>
 
-    <Pagination v-model:current-page="page" v-model:page-size="size" :total="total" @current-change="loadData"
-      @size-change="searchOrders" />
+    <Pagination class="orders-pagination" v-model:current-page="page" v-model:page-size="size" :total="total"
+      @current-change="loadData" @size-change="searchOrders" />
   </el-card>
 </template>
 
 <style scoped>
 .orders-card {
+  display: flex;
+  height: 100%;
+  min-height: 0;
   min-width: 0;
+  flex-direction: column;
+}
+
+.orders-card :deep(.el-card__body) {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .page-heading {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
@@ -219,6 +254,7 @@ onMounted(loadData)
 
 .status-grid {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 10px;
   margin-bottom: 18px;
@@ -249,10 +285,12 @@ onMounted(loadData)
 
 .list-toolbar {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
+  max-width: 60%;
 }
 
 .filter-keyword {
@@ -269,10 +307,15 @@ onMounted(loadData)
 
 .table-wrap {
   width: 100%;
-  overflow-x: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .orders-table {
+  width: 100%;
+  min-width: 900px;
+  height: 100%;
   --el-table-header-bg-color: #5094f5;
   --el-table-header-text-color: #fff;
   --el-table-tr-bg-color: #fff;
@@ -281,24 +324,38 @@ onMounted(loadData)
   --el-table-row-hover-bg-color: #90b3fa;
 }
 
+.orders-pagination {
+  flex: 0 0 auto;
+  margin-top: 0 !important;
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
+}
+
 .orders-table :deep(.el-table__header th.el-table__cell) {
   height: 40px;
-  padding: 0 5px;
+  padding: 0;
   border-right: 1px solid rgba(255, 255, 255, 0.95) !important;
   background-color: #5094f5 !important;
   color: #fff !important;
   text-align: center;
 }
 
-.orders-table :deep(.el-table__header .cell) {
+.orders-table :deep(.cell) {
   padding: 0 4px;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.orders-table :deep(.el-table__header .cell) {
+  font-size: 16px;
+  line-height: 1.2;
   white-space: nowrap;
   word-break: normal;
   text-align: center;
   font-weight: 600;
+}
+
+.column-header-label {
+  display: block;
+  white-space: nowrap;
 }
 
 .orders-table :deep(.el-table__body tr.el-table__row--striped > td.el-table__cell) {
