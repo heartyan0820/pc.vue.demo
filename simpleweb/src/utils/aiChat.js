@@ -66,10 +66,55 @@ export function supportsThinking(config) {
 }
 
 export function configHost(config) {
+  const url = config?.url || "";
   try {
-    return new URL(config.url).hostname;
+    return new URL(url).hostname;
   } catch {
-    return config.url || "";
+    return url;
+  }
+}
+
+/**
+ * 余额查询目前只有 DeepSeek 支持：GET /user/balance，用同一个 API Key 即可。
+ * 阿里云百炼 / 百度千帆都没有能用 sk- 类 Key 直接查余额的接口（需 AK/SK 签名），
+ * 所以这两个走"不支持"分支，前端给出明确提示而不是报错。
+ */
+export function supportsBalance(config) {
+  return /api\.deepseek\.com/.test(config?.url || "");
+}
+
+/**
+ * 查询账户余额。
+ * @returns {Promise<{isAvailable:boolean, infos:Array<{currency:string,total:string,granted:string,toppedUp:string}>}>}
+ */
+export async function fetchBalance(config) {
+  if (!supportsBalance(config)) throw new Error("该厂商未提供余额查询接口");
+
+  const response = await fetch(toRequestUrl(balanceUrl(config)), {
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+  });
+
+  if (!response.ok) throw new Error(await buildErrorMessage(response));
+
+  const data = await response.json();
+  return {
+    isAvailable: data?.is_available !== false,
+    infos: (data?.balance_infos || []).map((item) => ({
+      currency: item?.currency || "",
+      total: String(item?.total_balance ?? "0"),
+      granted: String(item?.granted_balance ?? "0"),
+      toppedUp: String(item?.topped_up_balance ?? "0"),
+    })),
+  };
+}
+
+function balanceUrl(config) {
+  // 配置里的 Url 可能是 /chat/completions 也可能是 /v1/chat/completions，
+  // 因此只用 origin 推导余额地址，避免把对话路径带进去变成 404
+  try {
+    return `${new URL(config.url).origin}/user/balance`;
+  } catch {
+    return "https://api.deepseek.com/user/balance";
   }
 }
 

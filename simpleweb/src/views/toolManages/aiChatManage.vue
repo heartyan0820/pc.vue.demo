@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   ArrowDown,
@@ -15,7 +15,14 @@ import {
   User,
   View,
 } from '@element-plus/icons-vue'
-import { configHost, fetchAiConfigs, streamChat, supportsThinking } from '../../utils/aiChat'
+import {
+  configHost,
+  fetchAiConfigs,
+  fetchBalance,
+  streamChat,
+  supportsBalance,
+  supportsThinking,
+} from '../../utils/aiChat'
 
 const MESSAGE_STORAGE_KEY = 'ai_chat_messages'
 const SETTINGS_STORAGE_KEY = 'ai_chat_settings'
@@ -31,6 +38,10 @@ const selectedConfigId = ref(null)
 const loadingConfigs = ref(false)
 const configError = ref('')
 
+const balance = ref(null)
+const balanceError = ref('')
+const loadingBalance = ref(false)
+
 const messages = ref([])
 const draft = ref('')
 const thinking = ref(true)
@@ -39,12 +50,27 @@ const systemPrompt = ref('你是一个乐于助人的中文助手，回答简洁
 const loading = ref(false)
 const showSettings = ref(false)
 const keyVisible = ref(false)
+const useCustomKey = ref(false)
+const customApiKey = ref('')
+const customKeyVisible = ref(false)
 const bodyRef = ref()
 
 const activeConfig = computed(
   () => configs.value.find((item) => item.id === selectedConfigId.value) || null,
 )
-const activeApiKey = computed(() => activeConfig.value?.apiKey || '')
+// 开了覆盖但还没填 Key，就当作"没有可用配置"，避免静默落回后台配置的 Key
+const keyMissing = computed(() => useCustomKey.value && !customApiKey.value.trim())
+
+// 实际生效的配置：地址 / 模型 / 温度仍来自后台配置，只把 Key 换成手填的
+const effectiveConfig = computed(() => {
+  const config = activeConfig.value
+  if (!config) return null
+  if (!useCustomKey.value) return config
+  const apiKey = customApiKey.value.trim()
+  return apiKey ? { ...config, apiKey } : null
+})
+
+const activeApiKey = computed(() => effectiveConfig.value?.apiKey || '')
 // 默认只露头尾：设置面板经常被投屏/截图，密钥不该一览无余
 const maskedApiKey = computed(() => {
   const apiKey = activeApiKey.value
@@ -52,8 +78,37 @@ const maskedApiKey = computed(() => {
   if (apiKey.length <= 12) return '*'.repeat(apiKey.length)
   return `${apiKey.slice(0, 6)}${'*'.repeat(Math.min(apiKey.length - 10, 20))}${apiKey.slice(-4)}`
 })
+const balanceText = computed(() => {
+  const infos = balance.value?.infos || []
+  if (!infos.length) return ''
+  const symbols = { CNY: '¥', USD: '$' }
+  return infos
+    .map((info) =>
+      symbols[info.currency] ? `${symbols[info.currency]}${info.total}` : `${info.total} ${info.currency}`.trim(),
+    )
+    .join(' / ')
+})
+
+const balanceDetail = computed(() => {
+  const info = balance.value?.infos?.[0]
+  if (!info) return ''
+  return `充值 ${info.toppedUp} / 赠金 ${info.granted}`
+})
+
+const balanceHint = computed(() => {
+  if (keyMissing.value) return '填写自定义 Key 后才能查询余额'
+  if (!supportsBalance(effectiveConfig.value)) return '该厂商未提供余额查询接口，请到对应控制台查看'
+  return '来自 DeepSeek /user/balance'
+})
+
+const keySourceHint = computed(() => {
+  if (keyMissing.value) return '等待填写自定义 Key'
+  if (useCustomKey.value) return `手动填写，配合「${activeConfig.value?.name || '-'}」的地址与模型`
+  return `来自后台配置「${activeConfig.value?.name || '-'}」`
+})
+
 const canSend = computed(
-  () => Boolean(draft.value.trim()) && !loading.value && Boolean(activeConfig.value),
+  () => Boolean(draft.value.trim()) && !loading.value && Boolean(effectiveConfig.value),
 )
 
 let controller = null
@@ -117,6 +172,8 @@ function persistSettings() {
       thinking: thinking.value,
       temperature: temperature.value,
       systemPrompt: systemPrompt.value,
+      useCustomKey: useCustomKey.value,
+      customApiKey: customApiKey.value,
     }),
   )
 }
@@ -127,6 +184,8 @@ function restoreSettings() {
     if (typeof saved.thinking === 'boolean') thinking.value = saved.thinking
     if (Number.isFinite(saved.temperature)) temperature.value = saved.temperature
     if (saved.systemPrompt) systemPrompt.value = saved.systemPrompt
+    if (typeof saved.useCustomKey === 'boolean') useCustomKey.value = saved.useCustomKey
+    if (saved.customApiKey) customApiKey.value = saved.customApiKey
     return saved.configId ?? null
   } catch {
     return null
@@ -158,10 +217,41 @@ async function loadConfigs(preferredId) {
   }
 }
 
+async function loadBalance() {
+  const config = effectiveConfig.value
+  balance.value = null
+  balanceError.value = ''
+
+  // 非 DeepSeek 厂商没有可用接口，别发请求，提示由模板里的 hint 承担
+  if (!config || !supportsBalance(config)) return
+
+  loadingBalance.value = true
+  try {
+    balance.value = await fetchBalance(config)
+  } catch (error) {
+    balanceError.value = error.message || '余额查询失败'
+  } finally {
+    loadingBalance.value = false
+  }
+}
+
+function resetBalance() {
+  balance.value = null
+  balanceError.value = ''
+  // 只在面板展开时才查询，避免每次进页面都打一次接口
+  if (showSettings.value) loadBalance()
+}
+
+function onCustomKeyChange() {
+  persistSettings()
+  resetBalance()
+}
+
 function onConfigChange() {
   const config = activeConfig.value
   if (config && config.temperature !== null) temperature.value = config.temperature
   keyVisible.value = false
+  resetBalance()
   persistSettings()
 }
 
@@ -169,7 +259,11 @@ async function sendMessage() {
   const text = draft.value.trim()
   if (!text || loading.value) return
 
-  if (!activeConfig.value) {
+  if (keyMissing.value) {
+    ElMessage.warning('请在设置里填写自定义 API Key')
+    return
+  }
+  if (!effectiveConfig.value) {
     ElMessage.warning('请先在上方选择一个 AI 配置')
     return
   }
@@ -190,7 +284,7 @@ async function sendMessage() {
     error: '',
     usage: null,
     createdAt: Date.now(),
-    configName: activeConfig.value.name,
+    configName: effectiveConfig.value.name,
   })
   messages.value.push(reply)
   // 先把提问落盘：这样生成中途刷新，问题也不会丢
@@ -202,7 +296,7 @@ async function sendMessage() {
 
   try {
     await streamChat({
-      config: activeConfig.value,
+      config: effectiveConfig.value,
       messages: requestMessages,
       temperature: temperature.value,
       thinking: thinking.value,
@@ -310,6 +404,10 @@ function restoreMessages() {
   }
 }
 
+watch(showSettings, (open) => {
+  if (open) loadBalance()
+})
+
 onMounted(() => {
   restoreMessages()
   loadConfigs(restoreSettings())
@@ -398,9 +496,59 @@ onMounted(() => {
             />
           </template>
         </el-input>
+        <span class="settings-hint">{{ keySourceHint }}</span>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-label">自定义 Key</span>
+        <el-switch v-model="useCustomKey" active-text="启用覆盖" @change="onCustomKeyChange" />
+        <el-input
+          v-model="customApiKey"
+          class="custom-key-input"
+          :type="customKeyVisible ? 'text' : 'password'"
+          :disabled="!useCustomKey"
+          placeholder="填写后覆盖上方配置自带的 Key"
+          clearable
+          @change="onCustomKeyChange"
+        >
+          <template #append>
+            <el-button
+              :icon="customKeyVisible ? Hide : View"
+              :disabled="!useCustomKey"
+              title="显示 / 隐藏"
+              @click="customKeyVisible = !customKeyVisible"
+            />
+          </template>
+        </el-input>
         <span class="settings-hint">
-          来自后台配置「{{ activeConfig ? activeConfig.name : '-' }}」
+          {{ useCustomKey ? '仅保存在本机浏览器，换设备需重新填' : '不启用时使用后台配置的 Key' }}
         </span>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-label">账户余额</span>
+        <div class="balance-value">
+          <template v-if="loadingBalance">查询中...</template>
+          <template v-else-if="balanceError">
+            <span class="balance-error">{{ balanceError }}</span>
+          </template>
+          <template v-else-if="balanceText">
+            <span class="balance-total">{{ balanceText }}</span>
+            <span v-if="balanceDetail" class="balance-detail">{{ balanceDetail }}</span>
+            <el-tag v-if="balance && !balance.isAvailable" type="danger" size="small">余额不可用</el-tag>
+          </template>
+          <template v-else>--</template>
+        </div>
+        <el-button
+          link
+          :icon="Refresh"
+          :loading="loadingBalance"
+          :disabled="!effectiveConfig || !supportsBalance(effectiveConfig)"
+          @click="loadBalance"
+        >
+          刷新
+        </el-button>
+        <span class="settings-hint">{{ balanceHint }}</span>
       </div>
 
       <div class="settings-row">
@@ -581,6 +729,35 @@ onMounted(() => {
 
 .apikey-input {
   max-width: 420px;
+}
+
+.custom-key-input {
+  max-width: 420px;
+}
+
+.balance-value {
+  display: flex;
+  min-width: 220px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.balance-total {
+  color: #303133;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.balance-detail {
+  color: #909399;
+  font-size: 12px;
+}
+
+.balance-error {
+  color: #f56c6c;
+  font-size: 12px;
 }
 
 .temperature-slider {
