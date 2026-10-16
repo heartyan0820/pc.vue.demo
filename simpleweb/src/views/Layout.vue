@@ -32,11 +32,17 @@
             </el-icon>
             <span>工具管理</span>
           </template>
-          <el-menu-item index="/file-manage">
+          <el-menu-item index="/files">
             <el-icon>
               <List />
             </el-icon>
             <span>文件管理</span>
+          </el-menu-item>
+          <el-menu-item index="/aiImage">
+            <el-icon>
+              <List />
+            </el-icon>
+            <span>AI图片生成</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -63,7 +69,8 @@
               <el-dropdown-menu>
                 <el-dropdown-item command="/orders">订单管理</el-dropdown-item>
                 <el-dropdown-item command="/users">用户管理</el-dropdown-item>
-                <el-dropdown-item command="/file-manage">文件管理</el-dropdown-item>
+                <el-dropdown-item command="/files">文件管理</el-dropdown-item>
+                <el-dropdown-item command="/aiImage">AI图片生成</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -188,7 +195,7 @@ const userStore = useUserStore()
 const isCollapsed = ref(false)
 const isMobile = ref(false)
 const menuCollapsed = computed(() => isCollapsed.value && !isMobile.value)
-const openMenuKeys = computed(() => route.path === '/file-manage' ? ['toolManage'] : ['business'])
+const openMenuKeys = computed(() => route.path === '/files' ? ['toolManage'] : ['business'])
 const activeNotificationTab = ref('unread')
 const notifications = ref([])
 const unreadNotifications = computed(() => notifications.value.filter((notification) => !notification.read))

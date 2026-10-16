@@ -26,9 +26,15 @@ const routes = [
       },
       {
         name: "fileManage",
-        path: "file-manage",
+        path: "files",
         meta: { title: "文件管理" },
         component: () => import("../views/toolManages/fileManage.vue"),
+      },
+      {
+        name: "aiImageManage",
+        path: "aiImage",
+        meta: { title: "AI图片生成" },
+        component: () => import("../views/toolManages/aiImageManage.vue"),
       },
       {
         name: "404",
