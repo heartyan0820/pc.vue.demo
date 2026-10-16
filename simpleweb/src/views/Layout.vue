@@ -44,6 +44,12 @@
             </el-icon>
             <span>AI图片生成</span>
           </el-menu-item>
+          <el-menu-item index="/aiChat">
+            <el-icon>
+              <List />
+            </el-icon>
+            <span>AI聊天</span>
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>

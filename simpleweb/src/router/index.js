@@ -37,6 +37,12 @@ const routes = [
         component: () => import("../views/toolManages/aiImageManage.vue"),
       },
       {
+        name: "aiChatManage",
+        path: "aiChat",
+        meta: { title: "AI聊天" },
+        component: () => import("../views/toolManages/aiChatManage.vue"),
+      },
+      {
         name: "404",
         path: "/404",
         component: () => import("../views/error/404.vue"),
