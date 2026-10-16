@@ -9,6 +9,40 @@ const request = axios.create({
 
 let redirectingToLogin = false;
 
+function isLoginRequest(config) {
+  return (
+    config?.method?.toLowerCase() === "post" &&
+    /\/auth\/session\/?$/.test(config?.url || "")
+  );
+}
+
+function isUnauthorized(status, data) {
+  return (
+    Number(status) === 401 ||
+    Number(data?.code) === 401 ||
+    Number(data?.status) === 401
+  );
+}
+
+function redirectToLogin() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("userInfo");
+
+  if (redirectingToLogin || router.currentRoute.value.name === "login") return;
+
+  redirectingToLogin = true;
+  ElMessage.warning("登录已过期，请重新登录");
+  router
+    .replace({ name: "login" })
+    .catch(() => {
+      window.location.hash = "#/login";
+    })
+    .finally(() => {
+      redirectingToLogin = false;
+    });
+}
+
 request.interceptors.request.use((config) => {
   if (config.headers.Authorization === "no-auth") {
     delete config.headers.Authorization;
@@ -23,26 +57,19 @@ request.interceptors.request.use((config) => {
 });
 
 request.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    if (isUnauthorized(res.status, res.data) && !isLoginRequest(res.config)) {
+      redirectToLogin();
+      return Promise.reject(new Error("登录已过期"));
+    }
+    return res.data;
+  },
   (err) => {
-    const status = err.response?.status;
-    const isLoginRequest =
-      err.config?.method?.toLowerCase() === "post" &&
-      /\/auth\/session\/?$/.test(err.config?.url || "");
-
-    if (status === 401 && !isLoginRequest) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userInfo");
-
-      if (!redirectingToLogin && router.currentRoute.value.name !== "login") {
-        redirectingToLogin = true;
-        ElMessage.warning("登录已过期，请重新登录");
-        router.replace({ name: "login" }).finally(() => {
-          redirectingToLogin = false;
-        });
-      }
-
+    if (
+      isUnauthorized(err.response?.status, err.response?.data) &&
+      !isLoginRequest(err.config)
+    ) {
+      redirectToLogin();
       return Promise.reject(err);
     }
 

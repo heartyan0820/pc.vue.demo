@@ -290,7 +290,6 @@ onMounted(loadData)
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
-  max-width: 60%;
 }
 
 .filter-keyword {
@@ -378,9 +377,24 @@ onMounted(loadData)
 }
 
 @media (max-width: 767px) {
+  .orders-card {
+    height: 100%;
+  }
+
+  .orders-card :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  .page-heading {
+    margin-bottom: 10px;
+  }
 
   .list-toolbar {
+    width: 100%;
+    max-width: none;
     align-items: stretch;
+    gap: 8px;
+    margin-bottom: 10px;
   }
 
   .filter-keyword,
@@ -390,7 +404,28 @@ onMounted(loadData)
   }
 
   .status-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    max-width: 100%;
+    gap: 8px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .status-card {
+    min-width: 104px;
+    min-height: 52px;
+    flex: 0 0 104px;
+    padding: 7px 10px;
+  }
+
+  .status-card strong {
+    font-size: 16px;
+  }
+
+  .orders-pagination {
+    padding-top: 8px;
   }
 }
 </style>
