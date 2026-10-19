@@ -63,6 +63,50 @@
         font-weight: 600;
         vertical-align: middle;
       }
+      .seq-list {
+        margin-top: 12px;
+      }
+      .seq-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.25);
+        font-size: 13px;
+      }
+      .seq-item.is-target {
+        box-shadow: inset 0 0 0 1px rgba(0, 242, 234, 0.5);
+      }
+      .seq-index {
+        width: 18px;
+        flex: 0 0 auto;
+        color: #00f2ea;
+      }
+      .seq-name {
+        flex: 0 0 auto;
+      }
+      .seq-item.is-target .seq-name {
+        color: #00f2ea;
+        font-weight: 600;
+      }
+      .seq-id {
+        flex: 1;
+        overflow: hidden;
+        color: rgba(255, 255, 255, 0.45);
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 12px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .btn.seq-btn {
+        width: auto;
+        flex: 0 0 auto;
+        padding: 4px 12px;
+        margin: 0;
+        font-size: 12px;
+      }
       .card h3 {
         font-size: 17px;
         margin-bottom: 6px;
@@ -234,6 +278,37 @@
         <div class="code-box" id="code-user"></div>
       </div>
 
+      <!-- 列表播放：连开多个链接，让抖音串成一个播放列表 -->
+      <div class="card">
+        <h3>📋 列表播放（垫片模式）</h3>
+        <p>
+          连续触发多条 deeplink，抖音会把它们排成一个播放列表：前几条是「垫片」，最后一条是你的视频。
+          进入 App 后划到最后一条即是你的。抖音内连续播放顺序<b>可能不生效</b>（官方页面自己也这么写），
+          真机为准；没串起来就用下面逐条「打开」手动补。
+        </p>
+        <input
+          id="inp-fillers"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="垫片视频 ID，多个用逗号/空格分隔（留空 = 不垫，只开你那条）"
+        />
+        <input
+          id="inp-interval"
+          class="field"
+          type="number"
+          min="200"
+          max="3000"
+          step="100"
+          value="800"
+          placeholder="每条间隔（毫秒）"
+        />
+        <button class="btn" id="btn-sequence">打开抖音并按列表播放</button>
+        <div id="hint-sequence" class="hint"></div>
+        <div id="seq-list" class="seq-list"></div>
+        <div class="code-box" id="code-sequence"></div>
+      </div>
+
       <!-- 调试日志：唤起失败时看这里 -->
       <div class="card">
         <h3>🛠 调试日志</h3>
@@ -388,6 +463,90 @@
             : "DouyinOpener.openVideo(" + JSON.stringify(r.id || "") + ");") +
           "\n" +
           "DouyinOpener.openHome(); // 推荐流，不支持指定视频";
+      }
+
+      // ============ 列表播放（垫片模式） ============
+      // 抖音不提供「指定视频的推荐流」，但连续触发多个 deeplink 会被串成一个播放列表；
+      // 于是先放几条「垫片」，把目标视频顶到列表末尾。
+      function buildSequence(silent) {
+        var fillers = val("inp-fillers")
+          .split(/[\s,，;；、]+/)
+          .filter(Boolean)
+          .map(function (raw) {
+            return resolveVideoInput(raw).id;
+          })
+          .filter(Boolean);
+
+        var target = resolveVideoInput(val("inp-video")).id;
+        if (!target) {
+          if (!silent) {
+            setHint("hint-sequence", "请先在上方「打开指定视频」里填好你的视频 ID", true);
+          }
+          return null;
+        }
+        if (!silent) setHint("hint-sequence", "");
+        return { fillers: fillers, ids: fillers.concat([target]) };
+      }
+
+      function renderSequence(seq) {
+        var box = $("seq-list");
+        box.textContent = "";
+        var last = seq.ids.length - 1;
+
+        seq.ids.forEach(function (id, i) {
+          var row = document.createElement("div");
+          row.className = i === last ? "seq-item is-target" : "seq-item";
+
+          var idx = document.createElement("span");
+          idx.className = "seq-index";
+          idx.textContent = String(i + 1);
+
+          var name = document.createElement("span");
+          name.className = "seq-name";
+          name.textContent = i === last ? "本次任务" : "垫片视频 " + (i + 1);
+
+          var idEl = document.createElement("span");
+          idEl.className = "seq-id";
+          idEl.textContent = id;
+
+          var btn = document.createElement("button");
+          btn.className = "btn ghost seq-btn";
+          btn.textContent = "打开";
+          btn.addEventListener("click", function () {
+            log("手动打开第 " + (i + 1) + " 条 → " + id);
+            DouyinOpener.openVideo(id);
+          });
+
+          row.appendChild(idx);
+          row.appendChild(name);
+          row.appendChild(idEl);
+          row.appendChild(btn);
+          box.appendChild(row);
+        });
+
+        $("code-sequence").textContent = seq.ids
+          .map(function (id) {
+            return "DouyinOpener.openVideo(" + JSON.stringify(id) + ");";
+          })
+          .join("\n");
+      }
+
+      function playSequence(ids, interval) {
+        var i = 0;
+        log("列表播放开始：共 " + ids.length + " 条，间隔 " + interval + "ms");
+        function step() {
+          if (i >= ids.length) {
+            log("列表播放：全部触发完毕");
+            return;
+          }
+          var id = ids[i];
+          i++;
+          log("列表播放 [" + i + "/" + ids.length + "] → " + id);
+          DouyinOpener.openVideo(id);
+          // 首条唤起后页面会切后台，Chrome 会把定时器节流到 ~1s，间隔太小反而容易丢
+          if (i < ids.length) setTimeout(step, interval);
+        }
+        step();
       }
 
       function requireUserInput() {
@@ -570,6 +729,29 @@
           }
           DouyinOpener.openHome();
         });
+
+        $("btn-sequence").addEventListener("click", function () {
+          var seq = buildSequence();
+          if (!seq) return;
+          renderSequence(seq);
+
+          var interval = parseInt(val("inp-interval"), 10);
+          if (!interval || interval < 200) interval = 800;
+          if (interval > 3000) interval = 3000;
+
+          playSequence(seq.ids, interval);
+        });
+
+        // 输入变化时实时重画列表，方便确认顺序
+        ["inp-fillers", "inp-video"].forEach(function (id) {
+          $(id).addEventListener("input", function () {
+            var seq = buildSequence(true);
+            if (seq) renderSequence(seq);
+          });
+        });
+
+        var initialSeq = buildSequence(true);
+        if (initialSeq) renderSequence(initialSeq);
       }
     </script>
   </body>
