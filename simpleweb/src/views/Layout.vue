@@ -50,6 +50,12 @@
             </el-icon>
             <span>AI聊天</span>
           </el-menu-item>
+          <el-menu-item index="/openDouyin">
+            <el-icon>
+              <List />
+            </el-icon>
+            <span>openDouyin</span>
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>

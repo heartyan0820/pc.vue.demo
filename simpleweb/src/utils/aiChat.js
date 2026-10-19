@@ -74,6 +74,27 @@ export function configHost(config) {
   }
 }
 
+// 图片走 OpenAI 的 content:[{type:'image_url'}]，只有视觉模型认，纯文本模型会直接 400。
+// 后台现在这几条配置（deepseek-chat / qwen-plus / ernie-4.5-turbo-128k）都是纯文本模型，
+// 换成视觉模型（qwen-vl-max、gpt-4o 等）后名字命中下面的规则就自动可用。
+const VISION_MODEL_PATTERNS = [
+  /vl/i,
+  /vision/i,
+  /gpt-4o/i,
+  /gpt-4\.1/i,
+  /claude-3/i,
+  /claude-4/i,
+  /gemini/i,
+  /glm-4v/i,
+  /doubao-vision/i,
+];
+
+/** 该配置的模型是否支持图片输入（按模型名推断，加新模型时往上面的列表补） */
+export function supportsVision(config) {
+  const model = config?.model || "";
+  return VISION_MODEL_PATTERNS.some((pattern) => pattern.test(model));
+}
+
 /**
  * 余额查询目前只有 DeepSeek 支持：GET /user/balance，用同一个 API Key 即可。
  * 阿里云百炼 / 百度千帆都没有能用 sk- 类 Key 直接查余额的接口（需 AK/SK 签名），

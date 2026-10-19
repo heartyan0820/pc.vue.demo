@@ -43,6 +43,12 @@ const routes = [
         component: () => import("../views/toolManages/aiChatManage.vue"),
       },
       {
+        name: "openDouyin",
+        path: "openDouyin",
+        meta: { title: "openDouyin" },
+        component: () => import("../views/toolManages/openDouyin.vue"),
+      },
+      {
         name: "404",
         path: "/404",
         component: () => import("../views/error/404.vue"),

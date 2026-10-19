@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
+    />
+    <title>H5 唤起抖音 - 调试页</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue",
+          sans-serif;
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        min-height: 100vh;
+        padding: 40px 20px 60px;
+        color: #fff;
+      }
+      .container {
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        text-align: center;
+        margin-bottom: 8px;
+        background: linear-gradient(90deg, #ff0050, #00f2ea);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .subtitle {
+        text-align: center;
+        color: #bbb;
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(10px);
+      }
+      .card h3 {
+        font-size: 17px;
+        margin-bottom: 6px;
+      }
+      .card p {
+        font-size: 13px;
+        color: #aaa;
+        margin-bottom: 14px;
+        line-height: 1.5;
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        background: linear-gradient(90deg, #ff0050, #ff3a75);
+        color: #fff;
+        transition:
+          transform 0.15s,
+          opacity 0.15s;
+      }
+      .btn:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+      }
+      .btn.secondary {
+        background: linear-gradient(90deg, #00f2ea, #00b3c7);
+        color: #0a0a23;
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #fff;
+        margin-top: 10px;
+      }
+      .field {
+        display: block;
+        width: 100%;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        color: #fff;
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+      }
+      .field:focus {
+        border-color: #00f2ea;
+      }
+      .field::placeholder {
+        color: #7c8395;
+      }
+      .hint {
+        margin-top: 10px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: #00f2ea;
+      }
+      .hint.err {
+        color: #ff6b8a;
+      }
+      .code-box {
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 12px;
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 12px;
+        color: #9ef0ff;
+        overflow-x: auto;
+        line-height: 1.6;
+        white-space: pre;
+      }
+      .env-tag {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .env-tag.on {
+        background: rgba(0, 242, 234, 0.25);
+        color: #00f2ea;
+      }
+      .tips {
+        margin-top: 24px;
+        padding: 16px;
+        background: rgba(255, 0, 80, 0.1);
+        border-left: 3px solid #ff0050;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.7;
+        color: #ffd1dd;
+      }
+      .tips strong {
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎵 H5 唤起抖音</h1>
+      <p class="subtitle">填入参数后点击按钮，测试唤起效果</p>
+
+      <!-- 当前环境识别 -->
+      <div class="card">
+        <h3>📍 当前环境识别</h3>
+        <div id="env-box" style="margin-top: 10px"></div>
+      </div>
+
+      <!-- 打开用户主页 -->
+      <div class="card">
+        <h3>👤 打开用户主页</h3>
+        <p>填入用户的 sec_uid（从分享链接 /user/ 后面那串）</p>
+        <input
+          id="inp-user"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="例如：MS4wLjABAAAA..."
+        />
+        <button class="btn" id="btn-user">唤起 App 打开主页</button>
+        <button class="btn ghost" id="btn-user-web">网页版打开主页</button>
+        <div id="hint-user" class="hint"></div>
+        <div class="code-box" id="code-user"></div>
+      </div>
+
+      <!-- 打开指定视频 -->
+      <div class="card">
+        <h3>🎬 打开指定视频</h3>
+        <p>填视频 ID，或直接粘贴分享链接（会自动提取 ID）</p>
+        <input
+          id="inp-video"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="视频 ID，或 https://www.douyin.com/video/..."
+        />
+        <button class="btn secondary" id="btn-video">唤起 App 打开视频</button>
+        <button class="btn ghost" id="btn-video-web">网页版打开视频</button>
+        <div id="hint-video" class="hint"></div>
+        <div class="code-box" id="code-video"></div>
+      </div>
+
+      <!-- 使用说明 -->
+      <div class="tips">
+        <strong>⚠️ 使用注意事项：</strong><br />
+        1. 必须在<strong>用户点击事件</strong>中直接调用，不可放在异步回调里（iOS会拦截）；<br />
+        2. 在<strong>微信/QQ/企微</strong>中会自动弹出"右上角在浏览器打开"的引导蒙层；<br />
+        3. 未安装抖音时，Android 通过 intent 自动降级到网页版，iOS 超时后跳网页版；<br />
+        4. 视频ID可从抖音分享链接的 <code>/video/数字ID</code> 提取，粘贴长链会自动提取；短链（如
+        <code>douyin.com/xxxx</code>）需要服务端解析，前端拿不到；<br />
+        5. 参数也可以通过地址栏预填：<code>?userId=xxx&amp;videoId=xxx</code>。
+      </div>
+    </div>
+
+    <!-- 引入工具脚本（与本页同目录，public 下原样部署） -->
+    <script src="./douyinOpener.js"></script>
+    <script>
+      // ============ 环境检测展示 ============
+      var envBox = document.getElementById("env-box");
+      var envChecks = [
+        { key: "iOS", fn: DouyinOpener.env.isIOS },
+        { key: "Android", fn: DouyinOpener.env.isAndroid },
+        { key: "微信", fn: DouyinOpener.env.isWeChat },
+        { key: "QQ", fn: DouyinOpener.env.isQQ },
+        { key: "企微", fn: DouyinOpener.env.isWorkWeChat },
+        { key: "钉钉", fn: DouyinOpener.env.isDingTalk },
+      ];
+      envChecks.forEach(function (item) {
+        var tag = document.createElement("span");
+        tag.className = "env-tag" + (item.fn() ? " on" : "");
+        tag.textContent = item.key + (item.fn() ? " ✓" : "");
+        envBox.appendChild(tag);
+      });
+      var restrictedTag = document.createElement("span");
+      restrictedTag.className =
+        "env-tag" + (DouyinOpener.env.isRestricted() ? " on" : "");
+      restrictedTag.textContent =
+        "受限环境" + (DouyinOpener.env.isRestricted() ? " ⚠️" : "");
+      envBox.appendChild(restrictedTag);
+
+      // ============ 参数：全部来自输入，页面里不写死任何 ID ============
+      function $(id) {
+        return document.getElementById(id);
+      }
+
+      function val(id) {
+        return $(id).value.trim();
+      }
+
+      function setHint(id, text, isError) {
+        var el = $(id);
+        el.textContent = text || "";
+        el.className = isError ? "hint err" : "hint";
+      }
+
+      function queryParam(name) {
+        var matched = location.search.match(
+          new RegExp("[?&]" + name + "=([^&#]*)"),
+        );
+        return matched ? decodeURIComponent(matched[1]) : "";
+      }
+
+      // 分享链接 -> 视频ID；本来就填的是 ID 就原样返回
+      function parseVideoId(raw) {
+        var matched = raw.match(/\/video\/(\d+)/);
+        if (matched) return { id: matched[1], note: "已从分享链接提取视频 ID" };
+        if (/^https?:\/\//i.test(raw)) return { id: "", note: "" };
+        return { id: raw, note: "" };
+      }
+
+      // 代码提示框跟着输入实时更新，方便确认实际会调用什么
+      function syncCode() {
+        var user = val("inp-user");
+        var video = val("inp-video");
+        var videoId = video ? parseVideoId(video).id : "";
+        $("code-user").textContent =
+          "DouyinOpener.openUser(" + JSON.stringify(user) + ");";
+        $("code-video").textContent =
+          "DouyinOpener.openVideo(" + JSON.stringify(videoId) + ");";
+      }
+
+      function requireUserId() {
+        var id = val("inp-user");
+        if (!id) {
+          setHint("hint-user", "请先填写用户 sec_uid", true);
+          return null;
+        }
+        setHint("hint-user", "");
+        return id;
+      }
+
+      function requireVideoId() {
+        var raw = val("inp-video");
+        if (!raw) {
+          setHint("hint-video", "请先填写视频 ID 或粘贴分享链接", true);
+          return null;
+        }
+        var parsed = parseVideoId(raw);
+        if (!parsed.id) {
+          setHint(
+            "hint-video",
+            "短链需要服务端解析，请粘贴含 /video/ 的完整链接，或直接填 ID",
+            true,
+          );
+          return null;
+        }
+        setHint("hint-video", parsed.note);
+        return parsed.id;
+      }
+
+      ["inp-user", "inp-video"].forEach(function (id) {
+        $(id).addEventListener("input", function () {
+          setHint(id === "inp-user" ? "hint-user" : "hint-video", "");
+          syncCode();
+        });
+      });
+
+      // 地址栏预填：?userId=xxx&videoId=xxx
+      var presetUser = queryParam("userId");
+      var presetVideo = queryParam("videoId");
+      if (presetUser) $("inp-user").value = presetUser;
+      if (presetVideo) $("inp-video").value = presetVideo;
+      syncCode();
+
+      // ============ 按钮事件绑定（必须在点击的同步回调里调用） ============
+      $("btn-user").addEventListener("click", function () {
+        var id = requireUserId();
+        if (id) DouyinOpener.openUser(id);
+      });
+
+      $("btn-user-web").addEventListener("click", function () {
+        var id = requireUserId();
+        if (id) DouyinOpener.openUser(id, { forceWeb: true });
+      });
+
+      $("btn-video").addEventListener("click", function () {
+        var id = requireVideoId();
+        if (id) DouyinOpener.openVideo(id);
+      });
+
+      $("btn-video-web").addEventListener("click", function () {
+        var id = requireVideoId();
+        if (id) DouyinOpener.openVideo(id, { forceWeb: true });
+      });
+    </script>
+  </body>
+</html>

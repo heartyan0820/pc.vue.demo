@@ -4,14 +4,20 @@ import { ElMessage } from 'element-plus'
 import {
   ArrowDown,
   ArrowRight,
+  Bottom,
   ChatDotRound,
+  CircleClose,
   Delete,
+  Document,
   DocumentCopy,
   Hide,
   Loading,
+  Paperclip,
+  Picture,
   Promotion,
   Refresh,
   Setting,
+  Top,
   User,
   View,
 } from '@element-plus/icons-vue'
@@ -22,6 +28,7 @@ import {
   streamChat,
   supportsBalance,
   supportsThinking,
+  supportsVision,
 } from '../../utils/aiChat'
 
 const MESSAGE_STORAGE_KEY = 'ai_chat_messages'
@@ -32,6 +39,18 @@ const QUICK_PROMPTS = [
   '用一段话解释什么是 SSE 流式响应',
   '帮我把这段 SQL 优化一下',
 ]
+
+const MAX_ATTACHMENTS = 5
+const MAX_FILE_BYTES = 2 * 1024 * 1024
+// localStorage 一般只有 5MB，图片 base64 很容易撑爆，超过这个体积就不留原图
+const PERSIST_IMAGE_CHARS = 250 * 1024
+const PERSIST_TEXT_CHARS = 50000
+// 纯文本文件才能直接读出正文发过去；PDF/Word/Excel 需要专门的解析库，前端做不了
+const TEXT_FILE_EXTENSIONS = new Set([
+  'txt', 'md', 'markdown', 'json', 'csv', 'log', 'xml', 'yml', 'yaml', 'ini', 'conf',
+  'sql', 'js', 'ts', 'jsx', 'tsx', 'vue', 'css', 'scss', 'less', 'html', 'py', 'java',
+  'go', 'rb', 'php', 'c', 'cpp', 'h', 'sh', 'env', 'properties', 'gitignore',
+])
 
 const configs = ref([])
 const selectedConfigId = ref(null)
@@ -53,7 +72,15 @@ const keyVisible = ref(false)
 const useCustomKey = ref(false)
 const customApiKey = ref('')
 const customKeyVisible = ref(false)
+const forceVision = ref(false)
 const bodyRef = ref()
+const fileInputRef = ref()
+
+const attachments = ref([])
+const previewVisible = ref(false)
+const previewFile = ref(null)
+const atTop = ref(true)
+const atBottom = ref(true)
 
 const activeConfig = computed(
   () => configs.value.find((item) => item.id === selectedConfigId.value) || null,
@@ -107,8 +134,16 @@ const keySourceHint = computed(() => {
   return `来自后台配置「${activeConfig.value?.name || '-'}」`
 })
 
+// 模型名推断不出来时，允许在设置里手动强制开启（自家的视觉模型名可能不在规则里）
+const visionReady = computed(() => forceVision.value || supportsVision(effectiveConfig.value))
+const hasImageAttachment = computed(() => attachments.value.some((item) => item.kind === 'image'))
+
 const canSend = computed(
-  () => Boolean(draft.value.trim()) && !loading.value && Boolean(effectiveConfig.value),
+  () =>
+    (Boolean(draft.value.trim()) || attachments.value.length > 0) &&
+    !loading.value &&
+    Boolean(effectiveConfig.value) &&
+    (!hasImageAttachment.value || visionReady.value),
 )
 
 let controller = null
@@ -124,9 +159,26 @@ function formatTime(timestamp) {
   })
 }
 
+function onBodyScroll() {
+  const el = bodyRef.value
+  if (!el) return
+  // 留 24px 容差：滚到最后几个像素时浮点误差会让判定一直为 false
+  atTop.value = el.scrollTop <= 24
+  atBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= 24
+}
+
+function scrollToTop() {
+  nextTick(() => {
+    if (bodyRef.value) bodyRef.value.scrollTop = 0
+  })
+}
+
 function scrollToBottom() {
   nextTick(() => {
-    if (bodyRef.value) bodyRef.value.scrollTop = bodyRef.value.scrollHeight
+    const el = bodyRef.value
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+    onBodyScroll()
   })
 }
 
@@ -137,7 +189,7 @@ function buildRequestMessages() {
 
   for (const item of messages.value) {
     if (item.role === 'user') {
-      list.push({ role: 'user', content: item.content })
+      list.push({ role: 'user', content: buildUserContent(item.content || '', item.attachments || []) })
       continue
     }
     // 只有生成完毕且有正文的 assistant 消息才作为上下文回传
@@ -148,10 +200,52 @@ function buildRequestMessages() {
   return list
 }
 
+/**
+ * 把"正文 + 附件"拼成接口要的 content：
+ * - 文本附件直接内联进正文，纯文本模型也能吃
+ * - 图片走 OpenAI 的 image_url（data URL），只有视觉模型认
+ */
+function buildUserContent(text, attachmentList) {
+  const images = attachmentList.filter((item) => item.kind === 'image')
+  const files = attachmentList.filter((item) => item.kind === 'text')
+
+  let content = text
+  for (const file of files) {
+    content += `\n\n附件 ${file.name} 的内容：\n\`\`\`\n${file.text}\n\`\`\``
+  }
+  // 图片数据在落盘时被瘦身掉了，只能给模型一句说明
+  for (const image of images.filter((item) => !item.dataUrl)) {
+    content += `\n\n（此前附上了图片 ${image.name}，原图未在本机保留）`
+  }
+
+  const usableImages = images.filter((item) => item.dataUrl)
+  if (!usableImages.length) return content
+
+  const parts = []
+  if (content.trim()) parts.push({ type: 'text', text: content.trim() })
+  for (const image of usableImages) {
+    parts.push({ type: 'image_url', image_url: { url: image.dataUrl } })
+  }
+  return parts
+}
+
+/** 落盘前瘦身：大图不留原图，长文本截断，避免撑爆 localStorage */
+function slimAttachment(attachment) {
+  if (attachment.kind === 'image') {
+    if (!attachment.dataUrl || attachment.dataUrl.length > PERSIST_IMAGE_CHARS) {
+      return { id: attachment.id, kind: 'image', name: attachment.name, size: attachment.size }
+    }
+    return attachment
+  }
+  const text = attachment.text || ''
+  if (text.length <= PERSIST_TEXT_CHARS) return attachment
+  return { ...attachment, text: `${text.slice(0, PERSIST_TEXT_CHARS)}\n...（内容过长，已截断）` }
+}
+
 function persistMessages() {
   const plain = messages.value
     .filter((item) => !item.loading)
-    .map(({ id, role, content, reasoning, error, usage, createdAt }) => ({
+    .map(({ id, role, content, reasoning, error, usage, createdAt, attachments }) => ({
       id,
       role,
       content,
@@ -160,8 +254,33 @@ function persistMessages() {
       error: error || '',
       usage: usage || null,
       createdAt,
+      attachments: (attachments || []).map(slimAttachment),
     }))
-  localStorage.setItem(MESSAGE_STORAGE_KEY, JSON.stringify(plain))
+
+  try {
+    localStorage.setItem(MESSAGE_STORAGE_KEY, JSON.stringify(plain))
+    return
+  } catch {
+    // 配额超限（图片最常见）：丢掉所有图片数据再存一次，至少保住文字记录
+  }
+
+  try {
+    localStorage.setItem(
+      MESSAGE_STORAGE_KEY,
+      JSON.stringify(
+        plain.map((item) => ({
+          ...item,
+          attachments: (item.attachments || []).map((file) =>
+            file.kind === 'image'
+              ? { id: file.id, kind: 'image', name: file.name, size: file.size }
+              : file,
+          ),
+        })),
+      ),
+    )
+  } catch {
+    console.warn('[aiChat] 会话过大，本地历史未保存')
+  }
 }
 
 function persistSettings() {
@@ -174,6 +293,7 @@ function persistSettings() {
       systemPrompt: systemPrompt.value,
       useCustomKey: useCustomKey.value,
       customApiKey: customApiKey.value,
+      forceVision: forceVision.value,
     }),
   )
 }
@@ -186,6 +306,7 @@ function restoreSettings() {
     if (saved.systemPrompt) systemPrompt.value = saved.systemPrompt
     if (typeof saved.useCustomKey === 'boolean') useCustomKey.value = saved.useCustomKey
     if (saved.customApiKey) customApiKey.value = saved.customApiKey
+    if (typeof saved.forceVision === 'boolean') forceVision.value = saved.forceVision
     return saved.configId ?? null
   } catch {
     return null
@@ -257,7 +378,9 @@ function onConfigChange() {
 
 async function sendMessage() {
   const text = draft.value.trim()
-  if (!text || loading.value) return
+  if (loading.value) return
+  // 只带附件、没打字也算一条有效消息（例如"帮我总结这个文件"）
+  if (!text && !attachments.value.length) return
 
   if (keyMissing.value) {
     ElMessage.warning('请在设置里填写自定义 API Key')
@@ -267,9 +390,21 @@ async function sendMessage() {
     ElMessage.warning('请先在上方选择一个 AI 配置')
     return
   }
+  if (hasImageAttachment.value && !visionReady.value) {
+    ElMessage.warning(`「${effectiveConfig.value.model}」不支持图片输入，请切换视觉模型或在设置里强制开启`)
+    return
+  }
 
+  const pending = attachments.value
   draft.value = ''
-  messages.value.push({ id: uid(), role: 'user', content: text, createdAt: Date.now() })
+  attachments.value = []
+  messages.value.push({
+    id: uid(),
+    role: 'user',
+    content: text,
+    attachments: pending,
+    createdAt: Date.now(),
+  })
 
   const requestMessages = buildRequestMessages()
   // 必须用 reactive 包一层：直接改普通对象的话 Vue 追踪不到变化，
@@ -360,6 +495,27 @@ async function copyContent(message) {
   }
 }
 
+const previewTruncated = computed(
+  () => Boolean(previewFile.value?.text?.includes('内容过长，已截断')),
+)
+
+function openPreview(file) {
+  if (!file) return
+  previewFile.value = file
+  previewVisible.value = true
+}
+
+async function copyPreviewText() {
+  const text = previewFile.value?.text
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('内容已复制')
+  } catch {
+    ElMessage.warning('浏览器拒绝了剪贴板访问，请手动复制')
+  }
+}
+
 async function copyApiKey() {
   if (!activeApiKey.value) return
   try {
@@ -370,8 +526,110 @@ async function copyApiKey() {
   }
 }
 
+function deleteMessage(id) {
+  const index = messages.value.findIndex((item) => item.id === id)
+  if (index === -1) return
+  messages.value.splice(index, 1)
+  persistMessages()
+}
+
+function pickFiles() {
+  fileInputRef.value?.click()
+}
+
+function formatSize(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function fileExtension(name) {
+  const index = name.lastIndexOf('.')
+  return index === -1 ? '' : name.slice(index + 1).toLowerCase()
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('读取文件失败'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function addFiles(files) {
+  for (const file of files) {
+    if (attachments.value.length >= MAX_ATTACHMENTS) {
+      ElMessage.warning(`最多只能带 ${MAX_ATTACHMENTS} 个附件`)
+      break
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      ElMessage.warning(`${file.name} 超过 ${formatSize(MAX_FILE_BYTES)}，已跳过`)
+      continue
+    }
+
+    if (file.type.startsWith('image/')) {
+      try {
+        const dataUrl = await readAsDataUrl(file)
+        attachments.value.push({ id: uid(), kind: 'image', name: file.name, size: file.size, dataUrl })
+      } catch {
+        ElMessage.error(`${file.name} 读取失败`)
+      }
+      continue
+    }
+
+    if (TEXT_FILE_EXTENSIONS.has(fileExtension(file.name))) {
+      const text = new TextDecoder('utf-8').decode(await file.arrayBuffer())
+      attachments.value.push({ id: uid(), kind: 'text', name: file.name, size: file.size, text })
+      continue
+    }
+
+    ElMessage.warning(`${file.name} 暂不支持：PDF / Word / Excel 请转成文本或截图后再传`)
+  }
+}
+
+async function onFilesPicked(event) {
+  const input = event.target
+  const files = Array.from(input.files || [])
+  // 必须清空 value，否则连续选同一个文件不会再触发 change
+  input.value = ''
+  await addFiles(files)
+}
+
+/** 截图粘进来时浏览器给的名字通常是 image.png，换成能分辨的名字 */
+function pastedImageName(file) {
+  if (file.name && file.name !== 'image.png') return file.name
+  const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false }).replace(/:/g, '')
+  return `粘贴图片-${stamp}.png`
+}
+
+async function onPaste(event) {
+  const clipboard = event.clipboardData
+  if (!clipboard) return
+
+  // 现代浏览器直接给 files；Safari 之类可能只有 items，两条路都试一下
+  let images = Array.from(clipboard.files || []).filter((file) => file.type.startsWith('image/'))
+  if (!images.length) {
+    images = Array.from(clipboard.items || [])
+      .filter((item) => item.kind === 'file' && String(item.type).startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter(Boolean)
+  }
+  if (!images.length) return
+
+  // 剪贴板里往往同时有文字（比如从微信复制的截图），有图就别把文字也塞进输入框
+  event.preventDefault()
+  await addFiles(images.map((file) => new File([file], pastedImageName(file), { type: file.type })))
+}
+
+function removeAttachment(id) {
+  attachments.value = attachments.value.filter((item) => item.id !== id)
+}
+
 function clearChat() {
   messages.value = []
+  attachments.value = []
   localStorage.removeItem(MESSAGE_STORAGE_KEY)
   ElMessage.success('会话已清空')
 }
@@ -394,6 +652,7 @@ function restoreMessages() {
         reasoning,
         error,
         usage: item.usage || null,
+        attachments: item.attachments || [],
         reasonOpen: false,
         loading: false,
         createdAt: item.createdAt || Date.now(),
@@ -552,6 +811,18 @@ onMounted(() => {
       </div>
 
       <div class="settings-row">
+        <span class="settings-label">图片输入</span>
+        <el-switch v-model="forceVision" active-text="强制开启" @change="persistSettings" />
+        <span class="settings-hint">
+          {{
+            visionReady
+              ? '已按视觉模型处理，可发送图片'
+              : '当前模型名不匹配视觉模型，图片会被接口拒绝；确认它支持图片时可强制开启'
+          }}
+        </span>
+      </div>
+
+      <div class="settings-row">
         <span class="settings-label">系统提示词</span>
         <el-input
           v-model="systemPrompt"
@@ -577,93 +848,228 @@ onMounted(() => {
       </div>
     </div>
 
-    <div ref="bodyRef" class="chat-body">
-      <div v-if="!messages.length" class="chat-empty">
-        <el-icon class="empty-icon"><ChatDotRound /></el-icon>
-        <h3>开始和 AI 对话</h3>
-        <p>在下方输入内容，Enter 发送，Shift + Enter 换行</p>
-        <div class="quick-prompts">
-          <el-button
-            v-for="prompt in QUICK_PROMPTS"
-            :key="prompt"
-            size="small"
-            round
-            plain
-            @click="useQuickPrompt(prompt)"
-          >
-            {{ prompt }}
-          </el-button>
+    <div class="chat-body-wrapper">
+      <div ref="bodyRef" class="chat-body" @scroll="onBodyScroll">
+        <div v-if="!messages.length" class="chat-empty">
+          <el-icon class="empty-icon"><ChatDotRound /></el-icon>
+          <h3>开始和 AI 对话</h3>
+          <p>在下方输入内容，Enter 发送，Shift + Enter 换行；可直接粘贴图片，或点「附件」选文件</p>
+          <div class="quick-prompts">
+            <el-button
+              v-for="prompt in QUICK_PROMPTS"
+              :key="prompt"
+              size="small"
+              round
+              plain
+              @click="useQuickPrompt(prompt)"
+            >
+              {{ prompt }}
+            </el-button>
+          </div>
+        </div>
+
+        <div v-for="message in messages" :key="message.id" class="message-row" :class="message.role">
+          <div class="message-avatar">
+            <el-icon><User v-if="message.role === 'user'" /><ChatDotRound v-else /></el-icon>
+          </div>
+
+          <div class="message-main">
+            <div class="message-meta">
+              <span>{{ message.role === 'user' ? '我' : message.configName || 'AI' }}</span>
+              <span class="message-time">{{ formatTime(message.createdAt) }}</span>
+            </div>
+
+            <div class="message-bubble" :class="{ 'is-error': message.error }">
+              <div v-if="message.attachments?.length" class="message-attachments">
+                <div
+                  v-for="file in message.attachments"
+                  :key="file.id"
+                  class="attachment-chip is-clickable"
+                  :title="`点击预览 ${file.name}`"
+                  @click="openPreview(file)"
+                >
+                  <img
+                    v-if="file.kind === 'image' && file.dataUrl"
+                    :src="file.dataUrl"
+                    :alt="file.name"
+                    class="attachment-thumb"
+                  />
+                  <el-icon v-else>
+                    <Picture v-if="file.kind === 'image'" />
+                    <Document v-else />
+                  </el-icon>
+                  <span class="attachment-name">{{ file.name }}</span>
+                  <span class="attachment-size">{{ formatSize(file.size) }}</span>
+                </div>
+              </div>
+
+              <div v-if="message.reasoning" class="reasoning">
+                <button type="button" class="reasoning-toggle" @click="toggleReasoning(message)">
+                  <el-icon>
+                    <ArrowDown v-if="message.reasonOpen" />
+                    <ArrowRight v-else />
+                  </el-icon>
+                  <span>思考过程</span>
+                </button>
+                <pre v-show="message.reasonOpen" class="reasoning-content">{{ message.reasoning }}</pre>
+              </div>
+
+              <div v-if="message.error" class="message-error">{{ message.error }}</div>
+
+              <div v-else-if="!message.content && message.loading" class="message-typing">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>正在思考...</span>
+              </div>
+
+              <pre v-else-if="message.content" class="message-content">{{ message.content }}</pre>
+
+              <div v-if="message.usage" class="message-usage">
+                输入 {{ message.usage.prompt_tokens }} / 输出 {{ message.usage.completion_tokens }} tokens
+              </div>
+            </div>
+
+            <div class="message-actions">
+              <el-button
+                v-if="message.role === 'assistant' && message.content && !message.loading"
+                link
+                size="small"
+                :icon="DocumentCopy"
+                @click="copyContent(message)"
+              >
+                复制
+              </el-button>
+              <el-button
+                v-if="!message.loading"
+                link
+                size="small"
+                type="danger"
+                :icon="Delete"
+                @click="deleteMessage(message.id)"
+              >
+                删除
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div v-for="message in messages" :key="message.id" class="message-row" :class="message.role">
-        <div class="message-avatar">
-          <el-icon><User v-if="message.role === 'user'" /><ChatDotRound v-else /></el-icon>
-        </div>
-
-        <div class="message-main">
-          <div class="message-meta">
-            <span>{{ message.role === 'user' ? '我' : message.configName || 'AI' }}</span>
-            <span class="message-time">{{ formatTime(message.createdAt) }}</span>
-          </div>
-
-          <div class="message-bubble" :class="{ 'is-error': message.error }">
-            <div v-if="message.reasoning" class="reasoning">
-              <button type="button" class="reasoning-toggle" @click="toggleReasoning(message)">
-                <el-icon>
-                  <ArrowDown v-if="message.reasonOpen" />
-                  <ArrowRight v-else />
-                </el-icon>
-                <span>思考过程</span>
-              </button>
-              <pre v-show="message.reasonOpen" class="reasoning-content">{{ message.reasoning }}</pre>
-            </div>
-
-            <div v-if="message.error" class="message-error">{{ message.error }}</div>
-
-            <div v-else-if="!message.content && message.loading" class="message-typing">
-              <el-icon class="is-loading"><Loading /></el-icon>
-              <span>正在思考...</span>
-            </div>
-
-            <pre v-else class="message-content">{{ message.content }}</pre>
-
-            <div v-if="message.usage" class="message-usage">
-              输入 {{ message.usage.prompt_tokens }} / 输出 {{ message.usage.completion_tokens }} tokens
-            </div>
-          </div>
-
-          <el-button
-            v-if="message.role === 'assistant' && message.content && !message.loading"
-            class="copy-button"
-            link
-            size="small"
-            :icon="DocumentCopy"
-            @click="copyContent(message)"
-          >
-            复制
-          </el-button>
-        </div>
+      <div class="scroll-buttons">
+        <el-button
+          v-show="!atTop"
+          class="scroll-button"
+          circle
+          size="small"
+          :icon="Top"
+          title="回到顶部"
+          @click="scrollToTop"
+        />
+        <el-button
+          v-show="!atBottom"
+          class="scroll-button"
+          circle
+          size="small"
+          :icon="Bottom"
+          title="回到底部"
+          @click="scrollToBottom"
+        />
       </div>
     </div>
 
     <div class="chat-footer">
+      <div v-if="attachments.length" class="pending-attachments">
+        <div
+          v-for="file in attachments"
+          :key="file.id"
+          class="attachment-chip is-clickable"
+          :title="`点击预览 ${file.name}`"
+          @click="openPreview(file)"
+        >
+          <img
+            v-if="file.kind === 'image'"
+            :src="file.dataUrl"
+            :alt="file.name"
+            class="attachment-thumb"
+          />
+          <el-icon v-else><Document /></el-icon>
+          <span class="attachment-name">{{ file.name }}</span>
+          <span class="attachment-size">{{ formatSize(file.size) }}</span>
+          <el-button
+            link
+            size="small"
+            :icon="CircleClose"
+            title="移除"
+            @click.stop="removeAttachment(file.id)"
+          />
+        </div>
+      </div>
+
+      <div v-if="hasImageAttachment && !visionReady" class="vision-warning">
+        当前模型「{{ effectiveConfig?.model }}」不是视觉模型，发图片会被接口拒绝。请换成视觉模型，
+        或在设置里「强制开启」图片输入。
+      </div>
+
       <el-input
         v-model="draft"
         type="textarea"
         :rows="3"
         resize="none"
         :disabled="loading"
-        placeholder="输入消息，Enter 发送，Shift + Enter 换行"
+        placeholder="输入消息，Enter 发送，Shift + Enter 换行；可直接 Ctrl+V 粘贴图片"
+        @paste="onPaste"
         @keydown.enter.exact.prevent="handleEnter"
       />
       <div class="footer-actions">
+        <el-button
+          :icon="Paperclip"
+          :disabled="loading"
+          title="选择文件（截图可直接 Ctrl+V 粘贴）"
+          @click="pickFiles"
+        >
+          附件
+        </el-button>
         <el-button v-if="loading" type="danger" plain @click="stopGenerate">停止生成</el-button>
         <el-button v-else type="primary" :icon="Promotion" :disabled="!canSend" @click="sendMessage">
           发送
         </el-button>
       </div>
+
+      <input ref="fileInputRef" type="file" multiple class="hidden-file-input" @change="onFilesPicked" />
     </div>
+
+    <el-dialog
+      v-model="previewVisible"
+      :title="previewFile ? previewFile.name : '附件预览'"
+      width="720px"
+      append-to-body
+      destroy-on-close
+    >
+      <div v-if="previewFile" class="file-preview">
+        <div class="file-preview-meta">
+          <span>{{ previewFile.kind === 'image' ? '图片' : '文本' }}</span>
+          <span>{{ formatSize(previewFile.size) }}</span>
+          <span v-if="previewTruncated" class="file-preview-note">内容过长，保存会话时已截断</span>
+        </div>
+
+        <div v-if="previewFile.kind === 'image'" class="file-preview-image">
+          <img v-if="previewFile.dataUrl" :src="previewFile.dataUrl" :alt="previewFile.name" />
+          <div v-else class="file-preview-empty">
+            图片内容未保留（超过会话保存上限），只保留了文件名
+          </div>
+        </div>
+
+        <template v-else>
+          <pre class="file-preview-text">{{ previewFile.text || '（没有文本内容）' }}</pre>
+          <el-button
+            size="small"
+            :icon="DocumentCopy"
+            :disabled="!previewFile.text"
+            @click="copyPreviewText"
+          >
+            复制内容
+          </el-button>
+        </template>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -769,11 +1175,32 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.chat-body {
+.chat-body-wrapper {
+  position: relative;
+  display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.chat-body {
+  flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: 8px 4px;
+}
+
+.scroll-buttons {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+
+.scroll-button {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
 }
 
 .chat-empty {
@@ -938,8 +1365,126 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.copy-button {
+.message-actions {
+  display: flex;
   align-self: flex-start;
+  gap: 4px;
+}
+
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.attachment-chip {
+  display: flex;
+  max-width: 280px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fafcff;
+  color: #606266;
+  font-size: 12px;
+}
+
+.attachment-chip.is-clickable {
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.attachment-chip.is-clickable:hover {
+  border-color: #79bbff;
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.attachment-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.attachment-name {
+  overflow: hidden;
+  max-width: 150px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size {
+  color: #a0a8b3;
+}
+
+.pending-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.file-preview-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.file-preview-note {
+  color: #e6a23c;
+}
+
+.file-preview-image {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.file-preview-image img {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.file-preview-empty {
+  padding: 24px 0;
+  color: #909399;
+  font-size: 12px;
+}
+
+.file-preview-text {
+  max-height: 60vh;
+  margin: 0 0 10px;
+  padding: 12px;
+  overflow: auto;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #303133;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.vision-warning {
+  padding: 6px 10px;
+  border: 1px solid #fbc4c4;
+  border-radius: 6px;
+  background: #fef0f0;
+  color: #e26b6b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 .chat-footer {
