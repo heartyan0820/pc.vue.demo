@@ -14,10 +14,12 @@
   var DEFAULT_TIMEOUT = 2800; // 唤起判定超时，毫秒
 
   var DOUYIN_PACKAGE = "com.ss.android.ugc.aweme";
-  // 抖音极速版：包名不同；scheme 沿用 snssdk1128（与抖音一致）
-  // 真机上若极速版唤起失败，可用 config() 覆盖这两个值再测
+  // 抖音极速版：包名与 scheme 都和抖音不同
+  //   package = com.ss.android.ugc.aweme.lite（小米应用商店可查）
+  //   scheme  = snssdk2329://（不是 snssdk1128，写错就只能走兜底网页）
+  // 真机上若仍唤起失败，可用 config() 覆盖这两个值再测
   var DOUYIN_LITE_PACKAGE = "com.ss.android.ugc.aweme.lite";
-  var DOUYIN_LITE_SCHEME = DOUYIN_SCHEME;
+  var DOUYIN_LITE_SCHEME = "snssdk2329://";
 
   // ============ 调试钩子 ============
   // 外部可挂 DouyinOpener.onDebug = function(msg){} 观察唤起全过程
@@ -213,15 +215,24 @@
     }
     debug("目标 App = " + (isLite ? "抖音极速版" : "抖音") + "（package = " + pkg + "）");
 
-    if (isAndroid()) {
-      // Android intent 写法：未安装自动跳到 fallback url（网页版）
-      var intentScheme = buildAndroidIntent(finalScheme, webUrl, pkg);
-      debug("Android 走 intent → " + intentScheme);
-      window.location.href = intentScheme;
+    var targetUrl = isAndroid()
+      ? buildAndroidIntent(finalScheme, webUrl, pkg)
+      : finalScheme;
+    debug((isAndroid() ? "Android 走 intent → " : "iOS 走 scheme → ") + targetUrl);
+
+    // 连续唤起多条时，用隐藏 iframe 在「同一次点击」里一起发出：
+    // 定时器里发的第 2 条起可能被浏览器当成非用户手势而丢弃
+    if (options.trigger === "iframe") {
+      debug("触发方式 = 隐藏 iframe（同一次点击内并发发出）");
+      var frame = document.createElement("iframe");
+      frame.style.display = "none";
+      frame.src = targetUrl;
+      document.body.appendChild(frame);
+      setTimeout(function () {
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }, 1500);
     } else {
-      // iOS：直接使用 scheme
-      debug("iOS 走 scheme → " + finalScheme);
-      window.location.href = finalScheme;
+      window.location.href = targetUrl;
     }
   }
 
@@ -246,12 +257,15 @@
    * 格式参考：intent://...#Intent;scheme=xxx;package=com.douyin.tiktok;S.browser_fallback_url=xxx;end
    */
   function buildAndroidIntent(schemeUrl, fallbackUrl, packageName) {
-    // snssdk1128://aweme/detail/xxx → 取路径部分
-    var schemeBody = schemeUrl.replace(/^snssdk1128:\/\//, "");
+    // snssdk1128://aweme/detail/xxx → 取 scheme 名与路径部分
+    // 极速版是 snssdk2329://，所以 scheme 名也要跟着变，写死 snssdk1128 会导致唤不起
+    var matched = schemeUrl.match(/^([a-zA-Z][a-zA-Z0-9+.\-]*):\/\/([\s\S]*)$/);
+    var schemeName = matched ? matched[1] : "snssdk1128";
+    var schemeBody = matched ? matched[2] : schemeUrl;
     var intent =
       "intent://" +
       schemeBody +
-      "#Intent;scheme=snssdk1128;" +
+      "#Intent;scheme=" + schemeName + ";" +
       "package=" + (packageName || DOUYIN_PACKAGE) + ";" +
       "S.browser_fallback_url=" +
       encodeURIComponent(fallbackUrl) +
