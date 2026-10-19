@@ -49,6 +49,20 @@
         margin-bottom: 16px;
         backdrop-filter: blur(10px);
       }
+      .card.is-primary {
+        box-shadow: 0 0 0 2px rgba(0, 242, 234, 0.35);
+      }
+      .badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 9px;
+        border-radius: 10px;
+        background: #00f2ea;
+        color: #161823;
+        font-size: 12px;
+        font-weight: 600;
+        vertical-align: middle;
+      }
       .card h3 {
         font-size: 17px;
         margin-bottom: 6px;
@@ -173,16 +187,19 @@
         <div id="env-box" style="margin-top: 10px"></div>
       </div>
 
-      <!-- 打开用户主页 -->
-      <div class="card">
-        <h3>👤 打开用户主页</h3>
-        <p>填入用户的 sec_uid（从分享链接 /user/ 后面那串）</p>
+      <!-- 打开用户主页（主推：可滑动，且内容全是 TA 的） -->
+      <div class="card is-primary">
+        <h3>👤 打开用户主页 <span class="badge">推荐</span></h3>
+        <p>
+          进主页后点开任意视频，可上下滑看 TA 的全部作品 —— 官方支持的滑动流，内容全是 TA 的。
+          可填 sec_uid，也可直接粘贴主页链接或分享口令
+        </p>
         <input
           id="inp-user"
           class="field"
           type="text"
           autocomplete="off"
-          placeholder="例如：MS4wLjABAAAA..."
+          placeholder="sec_uid / 主页链接 / 分享口令"
         />
         <button class="btn" id="btn-user">唤起 App 打开主页</button>
         <button class="btn ghost" id="btn-user-web">网页版打开主页</button>
@@ -193,7 +210,9 @@
       <!-- 打开指定视频 -->
       <div class="card">
         <h3>🎬 打开指定视频</h3>
-        <p>填视频 ID、粘贴分享链接，或直接粘贴抖音分享口令（一整段文字也行）</p>
+        <p>
+          打开的是单条视频的独立页，<b>不能上滑</b>（真机实测）；想让用户继续刷，请用上面的「打开用户主页」
+        </p>
         <input
           id="inp-video"
           class="field"
@@ -288,6 +307,31 @@
        * 短链（v.douyin.com/xxx）前端解析不出 ID（需要跟跳转），
        * 所以不自己拼 scheme，而是直接跳抖音官方落地页，由它唤起 App。
        */
+      /**
+       * 识别用户主页输入：sec_uid / 主页链接 / 分享口令
+       * 主页链接形如 https://www.douyin.com/user/MS4wLjABAAAA...
+       */
+      function resolveUserInput(raw) {
+        if (!raw) return { kind: "empty" };
+
+        // 分享口令里夹着的短链
+        var short = raw.match(/https?:\/\/v\.douyin\.com\/[A-Za-z0-9_\-\/]+/i);
+        if (short) {
+          return {
+            kind: "short",
+            url: short[0],
+            note: "识别为抖音分享短链 → 交给抖音官方落地页唤起 App",
+          };
+        }
+
+        // 主页链接：取 /user/<sec_uid>
+        var matched = raw.match(/\/user\/([A-Za-z0-9_\-]{20,})/);
+        if (matched) return { kind: "id", id: matched[1], note: "已从主页链接提取 sec_uid" };
+
+        if (/^https?:\/\//i.test(raw)) return { kind: "unknown", note: "" };
+        return { kind: "id", id: raw, note: "" };
+      }
+
       function resolveVideoInput(raw) {
         if (!raw) return { kind: "empty" };
 
@@ -317,10 +361,12 @@
 
       // 代码提示框跟着输入实时更新，方便确认实际会调用什么
       function syncCode() {
-        var user = val("inp-user");
+        var ur = resolveUserInput(val("inp-user"));
         var r = resolveVideoInput(val("inp-video"));
         $("code-user").textContent =
-          "DouyinOpener.openUser(" + JSON.stringify(user) + ");";
+          (ur.kind === "short"
+            ? 'window.location.href = "' + ur.url + '"; // 官方落地页'
+            : "DouyinOpener.openUser(" + JSON.stringify(ur.id || "") + ");");
         $("code-video").textContent =
           (r.kind === "short"
             ? 'window.location.href = "' + r.url + '"; // 官方落地页'
@@ -329,14 +375,19 @@
           "DouyinOpener.openHome(); // 推荐流，不支持指定视频";
       }
 
-      function requireUserId() {
-        var id = val("inp-user");
-        if (!id) {
-          setHint("hint-user", "请先填写用户 sec_uid", true);
+      function requireUserInput() {
+        var raw = val("inp-user");
+        if (!raw) {
+          setHint("hint-user", "请先填写 sec_uid 或粘贴主页链接/口令", true);
           return null;
         }
-        setHint("hint-user", "");
-        return id;
+        var r = resolveUserInput(raw);
+        if (r.kind === "unknown") {
+          setHint("hint-user", "识别不出主页，请填 sec_uid 或粘贴抖音主页链接", true);
+          return null;
+        }
+        setHint("hint-user", r.note);
+        return r;
       }
 
       function requireVideoInput() {
@@ -433,15 +484,25 @@
 
         // ============ 按钮事件绑定（必须在点击的同步回调里调用） ============
         $("btn-user").addEventListener("click", function () {
-          var id = requireUserId();
-          log("点击「唤起 App 打开主页」，参数 = " + JSON.stringify(id));
-          if (id) DouyinOpener.openUser(id);
+          var r = requireUserInput();
+          if (!r) return;
+          if (r.kind === "short") {
+            log("点击「唤起 App 打开主页」，走官方短链落地页");
+            return gotoOfficialLanding(r.url);
+          }
+          log("点击「唤起 App 打开主页」，sec_uid = " + JSON.stringify(r.id));
+          DouyinOpener.openUser(r.id);
         });
 
         $("btn-user-web").addEventListener("click", function () {
-          var id = requireUserId();
-          log("点击「网页版打开主页」，参数 = " + JSON.stringify(id));
-          if (id) DouyinOpener.openUser(id, { forceWeb: true });
+          var r = requireUserInput();
+          if (!r) return;
+          if (r.kind === "short") {
+            log("点击「网页版打开主页」，走官方短链落地页");
+            return gotoOfficialLanding(r.url);
+          }
+          log("点击「网页版打开主页」，sec_uid = " + JSON.stringify(r.id));
+          DouyinOpener.openUser(r.id, { forceWeb: true });
         });
 
         $("btn-video").addEventListener("click", function () {
