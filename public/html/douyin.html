@@ -193,13 +193,13 @@
       <!-- 打开指定视频 -->
       <div class="card">
         <h3>🎬 打开指定视频</h3>
-        <p>填视频 ID，或直接粘贴分享链接（会自动提取 ID）</p>
+        <p>填视频 ID、粘贴分享链接，或直接粘贴抖音分享口令（一整段文字也行）</p>
         <input
           id="inp-video"
           class="field"
           type="text"
           autocomplete="off"
-          placeholder="视频 ID，或 https://www.douyin.com/video/..."
+          placeholder="视频 ID / 分享链接 / 短链 / 分享口令"
         />
         <button class="btn secondary" id="btn-video">唤起 App 打开视频</button>
         <button class="btn ghost" id="btn-video-web">网页版打开视频</button>
@@ -281,25 +281,51 @@
         return matched ? decodeURIComponent(matched[1]) : "";
       }
 
-      // 分享链接 -> 视频ID；本来就填的是 ID 就原样返回
-      function parseVideoId(raw) {
+      /**
+       * 识别输入：纯ID / 长链 / 短链 / 抖音分享口令
+       * 返回 { kind: "id" | "short" | "unknown" | "empty", id, url, note }
+       *
+       * 短链（v.douyin.com/xxx）前端解析不出 ID（需要跟跳转），
+       * 所以不自己拼 scheme，而是直接跳抖音官方落地页，由它唤起 App。
+       */
+      function resolveVideoInput(raw) {
+        if (!raw) return { kind: "empty" };
+
+        // 分享口令是一整段文案，里面夹着短链，先把它抠出来
+        var short = raw.match(/https?:\/\/v\.douyin\.com\/[A-Za-z0-9_\-\/]+/i);
+        if (short) {
+          return {
+            kind: "short",
+            url: short[0],
+            note: "识别为抖音分享短链 → 交给抖音官方落地页唤起 App",
+          };
+        }
+
         var matched = raw.match(/\/video\/(\d+)/);
-        if (matched) return { id: matched[1], note: "已从分享链接提取视频 ID" };
-        if (/^https?:\/\//i.test(raw)) return { id: "", note: "" };
-        return { id: raw, note: "" };
+        if (matched) return { kind: "id", id: matched[1], note: "已从分享链接提取视频 ID" };
+
+        if (/^https?:\/\//i.test(raw)) return { kind: "unknown", note: "" };
+        return { kind: "id", id: raw, note: "" };
+      }
+
+      // 抖音自己的落地页会用官方参数唤起 App 并定位到该视频，
+      // 比我们拼 scheme 更接近「以这条视频为起点继续刷」的体验
+      function gotoOfficialLanding(url) {
+        log("跳转抖音官方落地页 → " + url);
+        window.location.href = url;
       }
 
       // 代码提示框跟着输入实时更新，方便确认实际会调用什么
       function syncCode() {
         var user = val("inp-user");
-        var video = val("inp-video");
-        var videoId = video ? parseVideoId(video).id : "";
+        var r = resolveVideoInput(val("inp-video"));
         $("code-user").textContent =
           "DouyinOpener.openUser(" + JSON.stringify(user) + ");";
         $("code-video").textContent =
-          "DouyinOpener.openVideo(" +
-          JSON.stringify(videoId) +
-          ");\n" +
+          (r.kind === "short"
+            ? 'window.location.href = "' + r.url + '"; // 官方落地页'
+            : "DouyinOpener.openVideo(" + JSON.stringify(r.id || "") + ");") +
+          "\n" +
           "DouyinOpener.openHome(); // 推荐流，不支持指定视频";
       }
 
@@ -313,23 +339,19 @@
         return id;
       }
 
-      function requireVideoId() {
+      function requireVideoInput() {
         var raw = val("inp-video");
         if (!raw) {
-          setHint("hint-video", "请先填写视频 ID 或粘贴分享链接", true);
+          setHint("hint-video", "请先填写视频 ID 或粘贴分享链接/口令", true);
           return null;
         }
-        var parsed = parseVideoId(raw);
-        if (!parsed.id) {
-          setHint(
-            "hint-video",
-            "短链需要服务端解析，请粘贴含 /video/ 的完整链接，或直接填 ID",
-            true,
-          );
+        var r = resolveVideoInput(raw);
+        if (r.kind === "unknown") {
+          setHint("hint-video", "识别不出视频，请填 ID 或粘贴抖音分享链接", true);
           return null;
         }
-        setHint("hint-video", parsed.note);
-        return parsed.id;
+        setHint("hint-video", r.note);
+        return r;
       }
 
       ["inp-user", "inp-video"].forEach(function (id) {
@@ -423,28 +445,42 @@
         });
 
         $("btn-video").addEventListener("click", function () {
-          var id = requireVideoId();
-          log("点击「唤起 App 打开视频」，视频ID = " + JSON.stringify(id));
-          if (id) DouyinOpener.openVideo(id);
+          var r = requireVideoInput();
+          if (!r) return;
+          if (r.kind === "short") {
+            log("点击「唤起 App 打开视频」，走官方短链落地页");
+            return gotoOfficialLanding(r.url);
+          }
+          log("点击「唤起 App 打开视频」，视频ID = " + JSON.stringify(r.id));
+          DouyinOpener.openVideo(r.id);
         });
 
         $("btn-video-web").addEventListener("click", function () {
-          var id = requireVideoId();
-          log("点击「网页版打开视频」，视频ID = " + JSON.stringify(id));
-          if (id) DouyinOpener.openVideo(id, { forceWeb: true });
+          var r = requireVideoInput();
+          if (!r) return;
+          if (r.kind === "short") {
+            log("点击「网页版打开视频」，走官方短链落地页");
+            return gotoOfficialLanding(r.url);
+          }
+          log("点击「网页版打开视频」，视频ID = " + JSON.stringify(r.id));
+          DouyinOpener.openVideo(r.id, { forceWeb: true });
         });
 
         $("btn-video-home").addEventListener("click", function () {
-          var raw = val("inp-video");
-          var id = raw ? parseVideoId(raw).id : "";
+          var r = resolveVideoInput(val("inp-video"));
           log("点击「打开 App 推荐流」");
-          if (id) {
+          if (r.kind === "short") {
             setHint(
               "hint-video",
-              "推荐流不支持指定视频，要看 " + id + " 请点「唤起 App 打开视频」",
+              "推荐流不支持指定视频，要看这条视频请点「唤起 App 打开视频」",
+            );
+          } else if (r.kind === "id") {
+            setHint(
+              "hint-video",
+              "推荐流不支持指定视频，要看 " + r.id + " 请点「唤起 App 打开视频」",
             );
           }
-          DouyinOpener.openHome(id);
+          DouyinOpener.openHome();
         });
       }
     </script>
