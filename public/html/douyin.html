@@ -203,6 +203,7 @@
         />
         <button class="btn secondary" id="btn-video">唤起 App 打开视频</button>
         <button class="btn ghost" id="btn-video-web">网页版打开视频</button>
+        <button class="btn ghost" id="btn-video-home">在 App 推荐里打开</button>
         <div id="hint-video" class="hint"></div>
         <div class="code-box" id="code-video"></div>
       </div>
@@ -290,7 +291,10 @@
         $("code-user").textContent =
           "DouyinOpener.openUser(" + JSON.stringify(user) + ");";
         $("code-video").textContent =
-          "DouyinOpener.openVideo(" + JSON.stringify(videoId) + ");";
+          "DouyinOpener.openVideo(" +
+          JSON.stringify(videoId) +
+          ");\n" +
+          "DouyinOpener.openHome();";
       }
 
       function requireUserId() {
@@ -422,6 +426,11 @@
           var id = requireVideoId();
           log("点击「网页版打开视频」，视频ID = " + JSON.stringify(id));
           if (id) DouyinOpener.openVideo(id, { forceWeb: true });
+        });
+
+        $("btn-video-home").addEventListener("click", function () {
+          log("点击「在 App 推荐里打开」（忽略视频ID，直接落推荐流）");
+          DouyinOpener.openHome();
         });
       }
     </script>

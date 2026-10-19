@@ -269,6 +269,18 @@
   }
 
   /**
+   * 打开抖音主页/推荐流
+   * 不带任何 ID/路径：唤起到 App 主页（推荐 Tab）
+   * 注意：这只是「打开 App」，抖音不会因为你传了某个视频 ID
+   * 就把那条视频放到推荐流最前面——所以这个方法忽略 videoId
+   */
+  function openHome(options) {
+    var scheme = DOUYIN_SCHEME + "homepage";
+    var web = DOUYIN_WEB_BASE;
+    open(scheme, web, options);
+  }
+
+  /**
    * 自定义 scheme 唤起（高级用法）
    * @param {string} path - scheme 路径部分，例如 'aweme/detail/123'
    * @param {string} [fallbackUrl] - 失败兜底链接
@@ -292,6 +304,7 @@
     openUser: openUser,
     openVideo: openVideo,
     openLive: openLive,
+    openHome: openHome,
     openCustom: openCustom,
     closeGuide: closeGuide,
     // 环境判断工具，供外部逻辑使用
