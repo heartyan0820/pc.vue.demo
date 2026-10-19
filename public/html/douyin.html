@@ -294,7 +294,9 @@
           "DouyinOpener.openVideo(" +
           JSON.stringify(videoId) +
           ");\n" +
-          "DouyinOpener.openHome();";
+          "DouyinOpener.openHome(" +
+          JSON.stringify(videoId) +
+          ");";
       }
 
       function requireUserId() {
@@ -429,8 +431,13 @@
         });
 
         $("btn-video-home").addEventListener("click", function () {
-          log("点击「在 App 推荐里打开」（忽略视频ID，直接落推荐流）");
-          DouyinOpener.openHome();
+          var raw = val("inp-video");
+          var id = raw ? parseVideoId(raw).id : "";
+          if (raw && !id) {
+            log("注意：输入解析不出视频ID（短链？），本次不带 ID 进推荐流");
+          }
+          log("点击「在 App 推荐里打开」，视频ID = " + JSON.stringify(id));
+          DouyinOpener.openHome(id);
         });
       }
     </script>

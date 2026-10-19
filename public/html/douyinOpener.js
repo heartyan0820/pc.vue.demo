@@ -269,15 +269,27 @@
   }
 
   /**
-   * 打开抖音主页/推荐流
-   * 不带任何 ID/路径：唤起到 App 主页（推荐 Tab）
-   * 注意：这只是「打开 App」，抖音不会因为你传了某个视频 ID
-   * 就把那条视频放到推荐流最前面——所以这个方法忽略 videoId
+   * 打开抖音首页推荐流
+   *
+   * 官方 scheme 清单里：「首页feed」= snssdk1128://feed，只接受 refer / gd_label，
+   * **没有**「带作品ID落到推荐流」这种入口（作品只有 aweme/detail/<id> 一条路）。
+   * 所以这里把 videoId 以 aweme_id 附加过去，属于尽力而为：
+   *   - 客户端认这个参数 → 推荐流从该视频开始
+   *   - 客户端忽略 → 就是普通的推荐流
+   * 是否生效只能在真机上验证，日志里会打出实际 scheme 供核对。
+   *
+   * @param {string} [videoId] - 作品ID，可省略
+   * @param {object} [options]
    */
-  function openHome(options) {
-    var scheme = DOUYIN_SCHEME + "homepage";
-    var web = DOUYIN_WEB_BASE;
-    open(scheme, web, options);
+  function openHome(videoId, options) {
+    // 允许 openHome({ forceWeb: true }) 这种省略 videoId 的调法
+    if (videoId && typeof videoId === "object") {
+      options = videoId;
+      videoId = "";
+    }
+    var scheme = DOUYIN_SCHEME + "feed?refer=web";
+    if (videoId) scheme += "&aweme_id=" + encodeURIComponent(videoId);
+    open(scheme, DOUYIN_WEB_BASE, options);
   }
 
   /**
