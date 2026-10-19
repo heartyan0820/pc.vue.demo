@@ -271,14 +271,14 @@
   /**
    * 打开抖音首页推荐流
    *
-   * 官方 scheme 清单里：「首页feed」= snssdk1128://feed，只接受 refer / gd_label，
-   * **没有**「带作品ID落到推荐流」这种入口（作品只有 aweme/detail/<id> 一条路）。
-   * 所以这里把 videoId 以 aweme_id 附加过去，属于尽力而为：
-   *   - 客户端认这个参数 → 推荐流从该视频开始
-   *   - 客户端忽略 → 就是普通的推荐流
-   * 是否生效只能在真机上验证，日志里会打出实际 scheme 供核对。
+   * 【已真机验证的结论】抖音「首页feed」= snssdk1128://feed，只接受 refer / gd_label。
+   * 试过在后面挂 aweme_id=<作品ID>，客户端**直接忽略**——实测结果是进推荐流，
+   * 但显示的是算法推荐的内容，不是指定那条视频（Android + Chrome 135 / 小米浏览器）。
+   * 也就是说：「推荐流 + 指定视频」这个组合抖音不开放，二者只能二选一：
+   *   - 要定位到具体作品 → 用 openVideo()（snssdk1128://aweme/detail/<id>）
+   *   - 要进推荐流       → 用本方法（不指定视频）
    *
-   * @param {string} [videoId] - 作品ID，可省略
+   * @param {string} [videoId] - 保留参数位仅为兼容旧调用，实际会被忽略（见上）
    * @param {object} [options]
    */
   function openHome(videoId, options) {
@@ -287,9 +287,14 @@
       options = videoId;
       videoId = "";
     }
-    var scheme = DOUYIN_SCHEME + "feed?refer=web";
-    if (videoId) scheme += "&aweme_id=" + encodeURIComponent(videoId);
-    open(scheme, DOUYIN_WEB_BASE, options);
+    if (videoId) {
+      debug(
+        "推荐流不接受作品ID（实测 aweme_id 被忽略），已忽略传入的 videoId；要定位到 " +
+          videoId +
+          " 请改用 openVideo()",
+      );
+    }
+    open(DOUYIN_SCHEME + "feed?refer=web", DOUYIN_WEB_BASE, options);
   }
 
   /**

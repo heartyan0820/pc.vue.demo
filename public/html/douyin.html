@@ -203,7 +203,13 @@
         />
         <button class="btn secondary" id="btn-video">唤起 App 打开视频</button>
         <button class="btn ghost" id="btn-video-web">网页版打开视频</button>
-        <button class="btn ghost" id="btn-video-home">在 App 推荐里打开</button>
+        <button
+          class="btn ghost"
+          id="btn-video-home"
+          title="推荐流：抖音不支持指定视频，要打开指定视频请用上面的按钮"
+        >
+          打开 App 推荐流
+        </button>
         <div id="hint-video" class="hint"></div>
         <div class="code-box" id="code-video"></div>
       </div>
@@ -294,9 +300,7 @@
           "DouyinOpener.openVideo(" +
           JSON.stringify(videoId) +
           ");\n" +
-          "DouyinOpener.openHome(" +
-          JSON.stringify(videoId) +
-          ");";
+          "DouyinOpener.openHome(); // 推荐流，不支持指定视频";
       }
 
       function requireUserId() {
@@ -433,10 +437,13 @@
         $("btn-video-home").addEventListener("click", function () {
           var raw = val("inp-video");
           var id = raw ? parseVideoId(raw).id : "";
-          if (raw && !id) {
-            log("注意：输入解析不出视频ID（短链？），本次不带 ID 进推荐流");
+          log("点击「打开 App 推荐流」");
+          if (id) {
+            setHint(
+              "hint-video",
+              "推荐流不支持指定视频，要看 " + id + " 请点「唤起 App 打开视频」",
+            );
           }
-          log("点击「在 App 推荐里打开」，视频ID = " + JSON.stringify(id));
           DouyinOpener.openHome(id);
         });
       }
