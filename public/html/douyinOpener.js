@@ -13,6 +13,12 @@
   var DOUYIN_DOWNLOAD = "https://www.douyin.com/downloadpage/";
   var DEFAULT_TIMEOUT = 2800; // 唤起判定超时，毫秒
 
+  var DOUYIN_PACKAGE = "com.ss.android.ugc.aweme";
+  // 抖音极速版：包名不同；scheme 沿用 snssdk1128（与抖音一致）
+  // 真机上若极速版唤起失败，可用 config() 覆盖这两个值再测
+  var DOUYIN_LITE_PACKAGE = "com.ss.android.ugc.aweme.lite";
+  var DOUYIN_LITE_SCHEME = DOUYIN_SCHEME;
+
   // ============ 调试钩子 ============
   // 外部可挂 DouyinOpener.onDebug = function(msg){} 观察唤起全过程
   function debug(msg) {
@@ -195,30 +201,58 @@
     }, DEFAULT_TIMEOUT);
 
     // 4. 执行跳转：iOS 直接 location；Android 优先 intent:// 语法带降级
+    var isLite = options.app === "lite";
+    var pkg = isLite ? DOUYIN_LITE_PACKAGE : DOUYIN_PACKAGE;
+    var finalScheme = schemeUrl;
+    if (
+      isLite &&
+      DOUYIN_LITE_SCHEME !== DOUYIN_SCHEME &&
+      finalScheme.indexOf(DOUYIN_SCHEME) === 0
+    ) {
+      finalScheme = DOUYIN_LITE_SCHEME + finalScheme.slice(DOUYIN_SCHEME.length);
+    }
+    debug("目标 App = " + (isLite ? "抖音极速版" : "抖音") + "（package = " + pkg + "）");
+
     if (isAndroid()) {
       // Android intent 写法：未安装自动跳到 fallback url（网页版）
-      var intentScheme = buildAndroidIntent(schemeUrl, webUrl);
+      var intentScheme = buildAndroidIntent(finalScheme, webUrl, pkg);
       debug("Android 走 intent → " + intentScheme);
       window.location.href = intentScheme;
     } else {
       // iOS：直接使用 scheme
-      debug("iOS 走 scheme → " + schemeUrl);
-      window.location.href = schemeUrl;
+      debug("iOS 走 scheme → " + finalScheme);
+      window.location.href = finalScheme;
     }
+  }
+
+  /**
+   * 覆盖极速版的包名 / scheme（真机唤起失败时用 URL 参数快速试，无需改代码）
+   * @param {{litePackage?: string, liteScheme?: string}} opts
+   */
+  function config(opts) {
+    opts = opts || {};
+    if (opts.litePackage) DOUYIN_LITE_PACKAGE = opts.litePackage;
+    if (opts.liteScheme) DOUYIN_LITE_SCHEME = opts.liteScheme;
+    debug(
+      "配置更新：极速版 package = " +
+        DOUYIN_LITE_PACKAGE +
+        "，scheme = " +
+        DOUYIN_LITE_SCHEME,
+    );
   }
 
   /**
    * 构造 Android Intent 链接
    * 格式参考：intent://...#Intent;scheme=xxx;package=com.douyin.tiktok;S.browser_fallback_url=xxx;end
    */
-  function buildAndroidIntent(schemeUrl, fallbackUrl) {
+  function buildAndroidIntent(schemeUrl, fallbackUrl, packageName) {
     // snssdk1128://aweme/detail/xxx → 取路径部分
     var schemeBody = schemeUrl.replace(/^snssdk1128:\/\//, "");
     var intent =
       "intent://" +
       schemeBody +
       "#Intent;scheme=snssdk1128;" +
-      "package=com.ss.android.ugc.aweme;" +
+      "package=" + (packageName || DOUYIN_PACKAGE) + ";" +
       "S.browser_fallback_url=" +
       encodeURIComponent(fallbackUrl) +
       ";" +
@@ -322,6 +356,7 @@
     openVideo: openVideo,
     openLive: openLive,
     openHome: openHome,
+    config: config,
     openCustom: openCustom,
     closeGuide: closeGuide,
     // 环境判断工具，供外部逻辑使用

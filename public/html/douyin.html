@@ -107,6 +107,31 @@
         margin: 0;
         font-size: 12px;
       }
+      .app-switch {
+        display: flex;
+        gap: 10px;
+        margin: 10px 0;
+      }
+      .app-opt {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .app-opt:has(input:checked) {
+        border-color: #00f2ea;
+        color: #00f2ea;
+      }
+      .app-tip {
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 12px;
+        line-height: 1.6;
+      }
       .card h3 {
         font-size: 17px;
         margin-bottom: 6px;
@@ -257,33 +282,14 @@
         <div class="code-box" id="code-video"></div>
       </div>
 
-      <!-- 打开用户主页（主推：可滑动，且内容全是 TA 的） -->
-      <div class="card is-primary">
-        <h3>👤 打开用户主页 <span class="badge">推荐</span></h3>
-        <p>
-          进主页后点开任意视频，可上下滑看 TA 的全部作品 ——
-          官方支持的滑动流，内容全是 TA 的。 可填
-          sec_uid，也可直接粘贴主页链接或分享口令
-        </p>
-        <input
-          id="inp-user"
-          class="field"
-          type="text"
-          autocomplete="off"
-          placeholder="sec_uid / 主页链接 / 分享口令"
-        />
-        <button class="btn" id="btn-user">唤起 App 打开主页</button>
-        <button class="btn ghost" id="btn-user-web">网页版打开主页</button>
-        <div id="hint-user" class="hint"></div>
-        <div class="code-box" id="code-user"></div>
-      </div>
-
       <!-- 列表播放：连开多个链接，让抖音串成一个播放列表 -->
       <div class="card">
         <h3>📋 列表播放（垫片模式）</h3>
         <p>
-          连续触发多条 deeplink，抖音会把它们排成一个播放列表：前几条是「垫片」，最后一条是你的视频。
-          进入 App 后划到最后一条即是你的。抖音内连续播放顺序<b>可能不生效</b>（官方页面自己也这么写），
+          连续触发多条
+          deeplink，抖音会把它们排成一个播放列表：前几条是「垫片」，最后一条是你的视频。
+          进入 App
+          后划到最后一条即是你的。抖音内连续播放顺序<b>可能不生效</b>（官方页面自己也这么写），
           真机为准；没串起来就用下面逐条「打开」手动补。
         </p>
         <input
@@ -309,6 +315,45 @@
         <div class="code-box" id="code-sequence"></div>
       </div>
 
+      <!-- 目标 App -->
+      <div class="card">
+        <h3>📱 目标 App</h3>
+        <div class="app-switch">
+          <label class="app-opt">
+            <input type="radio" name="app" value="douyin" checked />
+            <span>抖音</span>
+          </label>
+          <label class="app-opt">
+            <input type="radio" name="app" value="lite" />
+            <span>抖音极速版</span>
+          </label>
+        </div>
+        <p class="app-tip">
+          极速版包名 com.ss.android.ugc.aweme.lite，scheme 沿用 snssdk1128。
+          真机上若极速版不跳转，可用 URL 参数覆盖实测：?litePkg=xxx&amp;liteScheme=xxx
+        </p>
+      </div>
+
+      <!-- 打开用户主页（主推：可滑动，且内容全是 TA 的） -->
+      <div class="card is-primary">
+        <h3>👤 打开用户主页 <span class="badge">推荐</span></h3>
+        <p>
+          进主页后点开任意视频，可上下滑看 TA 的全部作品 ——
+          官方支持的滑动流，内容全是 TA 的。 可填
+          sec_uid，也可直接粘贴主页链接或分享口令
+        </p>
+        <input
+          id="inp-user"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="sec_uid / 主页链接 / 分享口令"
+        />
+        <button class="btn" id="btn-user">唤起 App 打开主页</button>
+        <button class="btn ghost" id="btn-user-web">网页版打开主页</button>
+        <div id="hint-user" class="hint"></div>
+        <div class="code-box" id="code-user"></div>
+      </div>
       <!-- 调试日志：唤起失败时看这里 -->
       <div class="card">
         <h3>🛠 调试日志</h3>
@@ -449,6 +494,26 @@
         window.location.href = url;
       }
 
+      // 当前选择的 App：douyin / lite
+      function currentApp() {
+        var el = document.querySelector('input[name="app"]:checked');
+        return el && el.value === "lite" ? "lite" : "douyin";
+      }
+
+      // 代码框里显示的目标 App 参数
+      function appArg() {
+        return currentApp() === "lite" ? ', { app: "lite" }' : "";
+      }
+
+      // 所有唤起调用都要带上目标 App
+      function appOpts(extra) {
+        var o = { app: currentApp() };
+        if (extra) {
+          for (var k in extra) o[k] = extra[k];
+        }
+        return o;
+      }
+
       // 代码提示框跟着输入实时更新，方便确认实际会调用什么
       function syncCode() {
         var ur = resolveUserInput(val("inp-user"));
@@ -456,11 +521,17 @@
         $("code-user").textContent =
           ur.kind === "short"
             ? 'window.location.href = "' + ur.url + '"; // 官方落地页'
-            : "DouyinOpener.openUser(" + JSON.stringify(ur.id || "") + ");";
+            : "DouyinOpener.openUser(" +
+              JSON.stringify(ur.id || "") +
+              appArg() +
+              ");";
         $("code-video").textContent =
           (r.kind === "short"
             ? 'window.location.href = "' + r.url + '"; // 官方落地页'
-            : "DouyinOpener.openVideo(" + JSON.stringify(r.id || "") + ");") +
+            : "DouyinOpener.openVideo(" +
+              JSON.stringify(r.id || "") +
+              appArg() +
+              ");") +
           "\n" +
           "DouyinOpener.openHome(); // 推荐流，不支持指定视频";
       }
@@ -480,7 +551,11 @@
         var target = resolveVideoInput(val("inp-video")).id;
         if (!target) {
           if (!silent) {
-            setHint("hint-sequence", "请先在上方「打开指定视频」里填好你的视频 ID", true);
+            setHint(
+              "hint-sequence",
+              "请先在上方「打开指定视频」里填好你的视频 ID",
+              true,
+            );
           }
           return null;
         }
@@ -514,7 +589,7 @@
           btn.textContent = "打开";
           btn.addEventListener("click", function () {
             log("手动打开第 " + (i + 1) + " 条 → " + id);
-            DouyinOpener.openVideo(id);
+            DouyinOpener.openVideo(id, appOpts());
           });
 
           row.appendChild(idx);
@@ -526,12 +601,14 @@
 
         $("code-sequence").textContent = seq.ids
           .map(function (id) {
-            return "DouyinOpener.openVideo(" + JSON.stringify(id) + ");";
+            return (
+              "DouyinOpener.openVideo(" + JSON.stringify(id) + appArg() + ");"
+            );
           })
           .join("\n");
       }
 
-      function playSequence(ids, interval) {
+      function playSequence(ids, interval, options) {
         var i = 0;
         log("列表播放开始：共 " + ids.length + " 条，间隔 " + interval + "ms");
         function step() {
@@ -542,7 +619,7 @@
           var id = ids[i];
           i++;
           log("列表播放 [" + i + "/" + ids.length + "] → " + id);
-          DouyinOpener.openVideo(id);
+          DouyinOpener.openVideo(id, options);
           // 首条唤起后页面会切后台，Chrome 会把定时器节流到 ~1s，间隔太小反而容易丢
           if (i < ids.length) setTimeout(step, interval);
         }
@@ -675,7 +752,7 @@
             return gotoOfficialLanding(r.url);
           }
           log("点击「唤起 App 打开主页」，sec_uid = " + JSON.stringify(r.id));
-          DouyinOpener.openUser(r.id);
+          DouyinOpener.openUser(r.id, appOpts());
         });
 
         $("btn-user-web").addEventListener("click", function () {
@@ -686,7 +763,7 @@
             return gotoOfficialLanding(r.url);
           }
           log("点击「网页版打开主页」，sec_uid = " + JSON.stringify(r.id));
-          DouyinOpener.openUser(r.id, { forceWeb: true });
+          DouyinOpener.openUser(r.id, appOpts({ forceWeb: true }));
         });
 
         $("btn-video").addEventListener("click", function () {
@@ -697,7 +774,7 @@
             return gotoOfficialLanding(r.url);
           }
           log("点击「唤起 App 打开视频」，视频ID = " + JSON.stringify(r.id));
-          DouyinOpener.openVideo(r.id);
+          DouyinOpener.openVideo(r.id, appOpts());
         });
 
         $("btn-video-web").addEventListener("click", function () {
@@ -708,7 +785,7 @@
             return gotoOfficialLanding(r.url);
           }
           log("点击「网页版打开视频」，视频ID = " + JSON.stringify(r.id));
-          DouyinOpener.openVideo(r.id, { forceWeb: true });
+          DouyinOpener.openVideo(r.id, appOpts({ forceWeb: true }));
         });
 
         $("btn-video-home").addEventListener("click", function () {
@@ -727,7 +804,7 @@
                 " 请点「唤起 App 打开视频」",
             );
           }
-          DouyinOpener.openHome();
+          DouyinOpener.openHome(appOpts());
         });
 
         $("btn-sequence").addEventListener("click", function () {
@@ -739,7 +816,7 @@
           if (!interval || interval < 200) interval = 800;
           if (interval > 3000) interval = 3000;
 
-          playSequence(seq.ids, interval);
+          playSequence(seq.ids, interval, appOpts());
         });
 
         // 输入变化时实时重画列表，方便确认顺序
@@ -752,6 +829,32 @@
 
         var initialSeq = buildSequence(true);
         if (initialSeq) renderSequence(initialSeq);
+
+        // 切换目标 App：重画代码框，方便核对实际会发出的参数
+        Array.prototype.forEach.call(
+          document.querySelectorAll('input[name="app"]'),
+          function (el) {
+            el.addEventListener("change", function () {
+              log(
+                "目标 App 切换为 " +
+                  (currentApp() === "lite" ? "抖音极速版" : "抖音"),
+              );
+              syncCode();
+              var seq = buildSequence(true);
+              if (seq) renderSequence(seq);
+            });
+          },
+        );
+
+        // 真机上极速版若不跳转，用 URL 参数临时覆盖包名/scheme，不用改代码
+        var litePkg = queryParam("litePkg");
+        var liteScheme = queryParam("liteScheme");
+        if (litePkg || liteScheme) {
+          DouyinOpener.config({
+            litePackage: litePkg || undefined,
+            liteScheme: liteScheme || undefined,
+          });
+        }
       }
     </script>
   </body>
