@@ -286,11 +286,10 @@
       <div class="card">
         <h3>📋 列表播放（垫片模式）</h3>
         <p>
-          连续触发多条
-          deeplink，抖音会把它们排成一个播放列表：前几条是「垫片」，最后一条是你的视频。
-          进入 App
-          后划到最后一条即是你的。抖音内连续播放顺序<b>可能不生效</b>（官方页面自己也这么写），
-          真机为准；没串起来就用下面逐条「打开」手动补。
+          <b>⚠️ 已实测证伪：5 条全部发出（274ms、0 拦截），抖音端仍只播 1 条且不能滑。</b>
+          抖音视频页是 singleTask，后续 intent 走 onNewIntent 被覆盖，不会排队 ——
+          前端发多少条都没用。要「多条能上下滑」请用下面的<b>话题页 / 音乐页</b>，
+          那才是抖音里真正存在的视频列表。
         </p>
         <input
           id="inp-fillers"
@@ -364,6 +363,27 @@
         <div id="hint-user" class="hint"></div>
         <div class="code-box" id="code-user"></div>
       </div>
+      <!-- 真正在抖音里存在的「视频列表」：话题页 / 音乐页，本身就是可上下滑的流 -->
+      <div class="card is-primary">
+        <h3>🎞 可滑动的视频流 <span class="badge">推荐</span></h3>
+        <p>
+          想让多条视频能上下滑播，它们在抖音里必须本来就是一个列表。
+          <b>做法</b>：建一个只有你在用的话题（如 #我的专属标签），把要播的视频都带上这个话题，
+          打开话题页就是这几条视频的滑动流。音乐页同理（同一个配乐下的视频）。
+        </p>
+        <input
+          id="inp-stream"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="话题 ID 或 音乐 ID"
+        />
+        <button class="btn secondary" id="btn-challenge">打开话题页</button>
+        <button class="btn ghost" id="btn-music">打开音乐页</button>
+        <div id="hint-stream" class="hint"></div>
+        <div class="code-box" id="code-stream"></div>
+      </div>
+
       <!-- 调试日志：唤起失败时看这里 -->
       <div class="card">
         <h3>🛠 调试日志</h3>
@@ -544,6 +564,24 @@
               ");") +
           "\n" +
           "DouyinOpener.openHome(); // 推荐流，不支持指定视频";
+        var sid = val("inp-stream");
+        $("code-stream").textContent = sid
+          ? 'DouyinOpener.openCustom("challenge/detail/' +
+            sid +
+            '?refer=web", null' +
+            appArg() +
+            ");"
+          : "";
+      }
+
+      function requireStreamId(label) {
+        var id = val("inp-stream");
+        if (!id) {
+          setHint("hint-stream", "请先填写" + label + " ID", true);
+          return null;
+        }
+        setHint("hint-stream", "");
+        return id;
       }
 
       // ============ 列表播放（垫片模式） ============
@@ -844,6 +882,20 @@
           DouyinOpener.openUser(r.id, appOpts({ forceWeb: true }));
         });
 
+        $("btn-challenge").addEventListener("click", function () {
+          var id = requireStreamId("话题");
+          if (!id) return;
+          log("点击「打开话题页」，ID = " + JSON.stringify(id));
+          DouyinOpener.openCustom("challenge/detail/" + id + "?refer=web", null, appOpts());
+        });
+
+        $("btn-music").addEventListener("click", function () {
+          var id = requireStreamId("音乐");
+          if (!id) return;
+          log("点击「打开音乐页」，ID = " + JSON.stringify(id));
+          DouyinOpener.openCustom("music/detail/" + id + "?refer=web", null, appOpts());
+        });
+
         $("btn-video").addEventListener("click", function () {
           var r = requireVideoInput();
           if (!r) return;
@@ -898,10 +950,11 @@
         });
 
         // 输入变化时实时重画列表，方便确认顺序
-        ["inp-fillers", "inp-video"].forEach(function (id) {
+        ["inp-fillers", "inp-video", "inp-stream"].forEach(function (id) {
           $(id).addEventListener("input", function () {
             var seq = buildSequence(true);
             if (seq) renderSequence(seq);
+            if (id === "inp-stream") syncCode();
           });
         });
 
