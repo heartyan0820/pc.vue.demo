@@ -13,6 +13,19 @@
   var DOUYIN_DOWNLOAD = "https://www.douyin.com/downloadpage/";
   var DEFAULT_TIMEOUT = 2800; // 唤起判定超时，毫秒
 
+  // ============ 调试钩子 ============
+  // 外部可挂 DouyinOpener.onDebug = function(msg){} 观察唤起全过程
+  function debug(msg) {
+    try {
+      if (
+        global.DouyinOpener &&
+        typeof global.DouyinOpener.onDebug === "function"
+      ) {
+        global.DouyinOpener.onDebug(msg);
+      }
+    } catch (e) {}
+  }
+
   // ============ UA 环境识别 ============
   var ua = navigator.userAgent.toLowerCase();
 
@@ -115,14 +128,18 @@
     options = options || {};
     webUrl = webUrl || DOUYIN_WEB_BASE;
 
+    debug("开始唤起，兜底网页 = " + webUrl);
+
     // 1. 受限环境（微信/QQ/企微）→ 弹出引导蒙层
     if (isRestrictedEnv() && !options.forceWeb) {
+      debug("命中受限环境（微信/QQ/企微）→ 只弹引导蒙层，未发起跳转");
       showGuideMask();
       return;
     }
 
     // 2. 强制走网页
     if (options.forceWeb) {
+      debug("强制网页版 → " + webUrl);
       window.location.href = webUrl;
       return;
     }
@@ -134,6 +151,7 @@
     // 页面被隐藏 / 失去焦点 → 说明 App 成功唤起，清掉降级定时器
     function onVisibilityChange() {
       if (document.hidden || document.webkitHidden) {
+        debug("页面被切到后台 → 判定为已唤起，取消降级（若此时 App 没打开，就是这个判断误判）");
         clearTimeout(timer);
         cleanup();
         jumped = true;
@@ -169,7 +187,10 @@
         !document.webkitHidden &&
         elapsed >= DEFAULT_TIMEOUT - 100
       ) {
+        debug("超时（" + elapsed + "ms）仍未唤起 → 降级到 " + (webUrl || DOUYIN_DOWNLOAD));
         window.location.href = webUrl || DOUYIN_DOWNLOAD;
+      } else {
+        debug("超时但页面在后台 → 认为已唤起，不做降级");
       }
     }, DEFAULT_TIMEOUT);
 
@@ -177,9 +198,11 @@
     if (isAndroid()) {
       // Android intent 写法：未安装自动跳到 fallback url（网页版）
       var intentScheme = buildAndroidIntent(schemeUrl, webUrl);
+      debug("Android 走 intent → " + intentScheme);
       window.location.href = intentScheme;
     } else {
       // iOS：直接使用 scheme
+      debug("iOS 走 scheme → " + schemeUrl);
       window.location.href = schemeUrl;
     }
   }
