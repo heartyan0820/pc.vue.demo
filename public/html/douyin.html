@@ -187,26 +187,6 @@
         <div id="env-box" style="margin-top: 10px"></div>
       </div>
 
-      <!-- 打开用户主页（主推：可滑动，且内容全是 TA 的） -->
-      <div class="card is-primary">
-        <h3>👤 打开用户主页 <span class="badge">推荐</span></h3>
-        <p>
-          进主页后点开任意视频，可上下滑看 TA 的全部作品 —— 官方支持的滑动流，内容全是 TA 的。
-          可填 sec_uid，也可直接粘贴主页链接或分享口令
-        </p>
-        <input
-          id="inp-user"
-          class="field"
-          type="text"
-          autocomplete="off"
-          placeholder="sec_uid / 主页链接 / 分享口令"
-        />
-        <button class="btn" id="btn-user">唤起 App 打开主页</button>
-        <button class="btn ghost" id="btn-user-web">网页版打开主页</button>
-        <div id="hint-user" class="hint"></div>
-        <div class="code-box" id="code-user"></div>
-      </div>
-
       <!-- 打开指定视频 -->
       <div class="card">
         <h3>🎬 打开指定视频</h3>
@@ -233,6 +213,27 @@
         <div class="code-box" id="code-video"></div>
       </div>
 
+      <!-- 打开用户主页（主推：可滑动，且内容全是 TA 的） -->
+      <div class="card is-primary">
+        <h3>👤 打开用户主页 <span class="badge">推荐</span></h3>
+        <p>
+          进主页后点开任意视频，可上下滑看 TA 的全部作品 ——
+          官方支持的滑动流，内容全是 TA 的。 可填
+          sec_uid，也可直接粘贴主页链接或分享口令
+        </p>
+        <input
+          id="inp-user"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="sec_uid / 主页链接 / 分享口令"
+        />
+        <button class="btn" id="btn-user">唤起 App 打开主页</button>
+        <button class="btn ghost" id="btn-user-web">网页版打开主页</button>
+        <div id="hint-user" class="hint"></div>
+        <div class="code-box" id="code-user"></div>
+      </div>
+
       <!-- 调试日志：唤起失败时看这里 -->
       <div class="card">
         <h3>🛠 调试日志</h3>
@@ -245,10 +246,14 @@
       <!-- 使用说明 -->
       <div class="tips">
         <strong>⚠️ 使用注意事项：</strong><br />
-        1. 必须在<strong>用户点击事件</strong>中直接调用，不可放在异步回调里（iOS会拦截）；<br />
-        2. 在<strong>微信/QQ/企微</strong>中会自动弹出"右上角在浏览器打开"的引导蒙层；<br />
-        3. 未安装抖音时，Android 通过 intent 自动降级到网页版，iOS 超时后跳网页版；<br />
-        4. 视频ID可从抖音分享链接的 <code>/video/数字ID</code> 提取，粘贴长链会自动提取；短链（如
+        1.
+        必须在<strong>用户点击事件</strong>中直接调用，不可放在异步回调里（iOS会拦截）；<br />
+        2.
+        在<strong>微信/QQ/企微</strong>中会自动弹出"右上角在浏览器打开"的引导蒙层；<br />
+        3. 未安装抖音时，Android 通过 intent 自动降级到网页版，iOS
+        超时后跳网页版；<br />
+        4. 视频ID可从抖音分享链接的
+        <code>/video/数字ID</code> 提取，粘贴长链会自动提取；短链（如
         <code>douyin.com/xxxx</code>）需要服务端解析，前端拿不到；<br />
         5. 参数也可以通过地址栏预填：<code>?userId=xxx&amp;videoId=xxx</code>。
       </div>
@@ -326,7 +331,12 @@
 
         // 主页链接：取 /user/<sec_uid>
         var matched = raw.match(/\/user\/([A-Za-z0-9_\-]{20,})/);
-        if (matched) return { kind: "id", id: matched[1], note: "已从主页链接提取 sec_uid" };
+        if (matched)
+          return {
+            kind: "id",
+            id: matched[1],
+            note: "已从主页链接提取 sec_uid",
+          };
 
         if (/^https?:\/\//i.test(raw)) return { kind: "unknown", note: "" };
         return { kind: "id", id: raw, note: "" };
@@ -346,7 +356,12 @@
         }
 
         var matched = raw.match(/\/video\/(\d+)/);
-        if (matched) return { kind: "id", id: matched[1], note: "已从分享链接提取视频 ID" };
+        if (matched)
+          return {
+            kind: "id",
+            id: matched[1],
+            note: "已从分享链接提取视频 ID",
+          };
 
         if (/^https?:\/\//i.test(raw)) return { kind: "unknown", note: "" };
         return { kind: "id", id: raw, note: "" };
@@ -364,9 +379,9 @@
         var ur = resolveUserInput(val("inp-user"));
         var r = resolveVideoInput(val("inp-video"));
         $("code-user").textContent =
-          (ur.kind === "short"
+          ur.kind === "short"
             ? 'window.location.href = "' + ur.url + '"; // 官方落地页'
-            : "DouyinOpener.openUser(" + JSON.stringify(ur.id || "") + ");");
+            : "DouyinOpener.openUser(" + JSON.stringify(ur.id || "") + ");";
         $("code-video").textContent =
           (r.kind === "short"
             ? 'window.location.href = "' + r.url + '"; // 官方落地页'
@@ -383,7 +398,11 @@
         }
         var r = resolveUserInput(raw);
         if (r.kind === "unknown") {
-          setHint("hint-user", "识别不出主页，请填 sec_uid 或粘贴抖音主页链接", true);
+          setHint(
+            "hint-user",
+            "识别不出主页，请填 sec_uid 或粘贴抖音主页链接",
+            true,
+          );
           return null;
         }
         setHint("hint-user", r.note);
@@ -398,7 +417,11 @@
         }
         var r = resolveVideoInput(raw);
         if (r.kind === "unknown") {
-          setHint("hint-video", "识别不出视频，请填 ID 或粘贴抖音分享链接", true);
+          setHint(
+            "hint-video",
+            "识别不出视频，请填 ID 或粘贴抖音分享链接",
+            true,
+          );
           return null;
         }
         setHint("hint-video", r.note);
@@ -440,7 +463,9 @@
 
       // 脚本没加载时，按钮点了会毫无反应——这里必须明确说出来
       if (typeof DouyinOpener === "undefined") {
-        log("✗ douyinOpener.js 未加载：所有按钮都不会有反应，也不会降级到网页版");
+        log(
+          "✗ douyinOpener.js 未加载：所有按钮都不会有反应，也不会降级到网页版",
+        );
         setHint(
           "hint-debug",
           "✗ 工具脚本 douyinOpener.js 加载失败，请确认它和本页面在同一个目录",
@@ -538,7 +563,9 @@
           } else if (r.kind === "id") {
             setHint(
               "hint-video",
-              "推荐流不支持指定视频，要看 " + r.id + " 请点「唤起 App 打开视频」",
+              "推荐流不支持指定视频，要看 " +
+                r.id +
+                " 请点「唤起 App 打开视频」",
             );
           }
           DouyinOpener.openHome();
