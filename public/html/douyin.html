@@ -132,6 +132,20 @@
         font-size: 12px;
         line-height: 1.6;
       }
+      .chk {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 10px 0 12px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 12px;
+        line-height: 1.5;
+        cursor: pointer;
+      }
+      .chk input {
+        margin-top: 2px;
+        flex: 0 0 auto;
+      }
       .card h3 {
         font-size: 17px;
         margin-bottom: 6px;
@@ -286,10 +300,11 @@
       <div class="card">
         <h3>📋 列表播放（垫片模式）</h3>
         <p>
-          <b>⚠️ 已实测证伪：5 条全部发出（274ms、0 拦截），抖音端仍只播 1 条且不能滑。</b>
-          抖音视频页是 singleTask，后续 intent 走 onNewIntent 被覆盖，不会排队 ——
-          前端发多少条都没用。要「多条能上下滑」请用下面的<b>话题页 / 音乐页</b>，
-          那才是抖音里真正存在的视频列表。
+          <b>关键：下一条必须等抖音在前台受理完再发。</b>
+          实测「并发」方式 5 条在 274ms 内全发出（平均间隔 55ms），抖音还没启动完就全到了
+          onNewIntent，结果只播 1 条、不能滑 —— <b>太快会被合并</b>。
+          所以默认改成<b>串行 + 2500ms</b>：第 1 条唤起 App，之后每隔 2.5 秒发下一条，
+          让抖音逐条渲染进播放列表。间隔不合适就往上调（3~5 秒）。
         </p>
         <input
           id="inp-fillers"
@@ -302,22 +317,26 @@
           id="inp-interval"
           class="field"
           type="number"
-          min="200"
-          max="3000"
-          step="100"
-          value="800"
-          placeholder="每条间隔（毫秒）"
+          min="300"
+          max="8000"
+          step="500"
+          value="2500"
+          placeholder="每条间隔（毫秒，建议 2500~5000）"
         />
         <div class="app-switch">
           <label class="app-opt">
-            <input type="radio" name="trigger" value="burst" checked />
-            <span>并发：同一次点击一起发</span>
+            <input type="radio" name="trigger" value="serial" checked />
+            <span>串行：等 2.5 秒发下一条</span>
           </label>
           <label class="app-opt">
-            <input type="radio" name="trigger" value="serial" />
-            <span>串行：按间隔逐条发</span>
+            <input type="radio" name="trigger" value="burst" />
+            <span>并发：一次全发（已实测无效）</span>
           </label>
         </div>
+        <label class="chk">
+          <input type="checkbox" id="chk-warmup" />
+          <span>先打开推荐流预热，再投视频（怀疑这才是人家「前几条是推荐栏」的原因）</span>
+        </label>
         <button class="btn" id="btn-sequence">打开抖音并按列表播放</button>
         <div id="hint-sequence" class="hint"></div>
         <div id="seq-list" class="seq-list"></div>
@@ -673,6 +692,18 @@
         }
       }
 
+      // 实际每条之间的真实间隔：能看出浏览器有没有把后台定时器节流（预期 ≈ 你设的值）
+      function realGapText(r) {
+        var t = r.times || [];
+        if (t.length < 2) return "";
+        var gaps = [];
+        for (var i = 1; i < t.length; i++) gaps.push(t[i] - t[i - 1]);
+        var sum = gaps.reduce(function (a, b) {
+          return a + b;
+        }, 0);
+        return "（真实间隔 " + Math.round(sum / gaps.length) + "ms/条）";
+      }
+
       function showLastRecord() {
         var r = readRecord();
         if (!r) return;
@@ -683,7 +714,8 @@
           "/" +
           r.total +
           " 条" +
-          (r.end ? "，用时 " + ms + "ms" : "（未走完，页面被切走）");
+          (r.end ? "，用时 " + ms + "ms" : "（未走完，页面被切走）") +
+          realGapText(r);
         if (r.end && r.fired === r.total) {
           txt += " —— 前端全都发出去了；若 App 里仍只有 1 条，说明抖音端不排队，前端无解";
         } else if (r.fired < r.total) {
@@ -698,22 +730,41 @@
         return el && el.value === "serial" ? "serial" : "burst";
       }
 
+      var HOME_STEP = "__home__";
+
       function playSequence(ids, interval, options) {
         var mode = currentTrigger();
-        var rec = { total: ids.length, fired: 0, start: Date.now(), end: 0 };
+        var warmBox = document.getElementById("chk-warmup");
+        var warmup = !!(warmBox && warmBox.checked);
+        // 勾选预热时，最前面插一步「打开推荐流」，让抖音先有 feed 的播放上下文
+        var steps = warmup ? [HOME_STEP].concat(ids) : ids.slice();
+
+        var rec = { total: steps.length, fired: 0, start: Date.now(), end: 0, times: [] };
         saveRecord(rec);
 
+        function fire(item, idx) {
+          if (item === HOME_STEP) {
+            log("列表播放 [预热] → 先打开推荐流");
+            DouyinOpener.openHome(options);
+          } else {
+            log("列表播放 [" + idx + "/" + ids.length + "] → " + item);
+            DouyinOpener.openVideo(item, options);
+          }
+        }
+
         if (mode === "burst") {
-          // 同一次点击里全部发出：第 2 条起不会被浏览器当成"非用户手势"丢掉
-          log("列表播放开始：共 " + ids.length + " 条，方式 = 并发（iframe）");
-          ids.forEach(function (id, i) {
-            DouyinOpener.openVideo(id, {
-              app: options.app,
-              trigger: "iframe",
-            });
+          log(
+            "列表播放开始：共 " +
+              ids.length +
+              " 条" +
+              (warmup ? " + 预热" : "") +
+              "，方式 = 并发（iframe）",
+          );
+          steps.forEach(function (item, i) {
+            fire(item, item === HOME_STEP ? 0 : i);
             rec.fired = i + 1;
+            rec.times.push(Date.now());
             saveRecord(rec);
-            log("列表播放 [" + (i + 1) + "/" + ids.length + "] → " + id);
           });
           rec.end = Date.now();
           saveRecord(rec);
@@ -722,22 +773,30 @@
         }
 
         var i = 0;
-        log("列表播放开始：共 " + ids.length + " 条，方式 = 串行 " + interval + "ms");
+        log(
+          "列表播放开始：共 " +
+            ids.length +
+            " 条" +
+            (warmup ? " + 预热" : "") +
+            "，方式 = 串行 " +
+            interval +
+            "ms",
+        );
         function step() {
-          if (i >= ids.length) {
+          if (i >= steps.length) {
             rec.end = Date.now();
             saveRecord(rec);
             log("列表播放：全部触发完毕");
             return;
           }
-          var id = ids[i];
+          var item = steps[i];
           i++;
-          log("列表播放 [" + i + "/" + ids.length + "] → " + id);
-          DouyinOpener.openVideo(id, options);
+          fire(item, item === HOME_STEP ? 0 : i - (warmup ? 1 : 0));
           rec.fired = i;
+          rec.times.push(Date.now());
           saveRecord(rec);
           // 首条唤起后页面会切后台，Chrome 会把定时器节流到 ~1s，间隔太小反而容易丢
-          if (i < ids.length) setTimeout(step, interval);
+          if (i < steps.length) setTimeout(step, interval);
         }
         step();
       }
@@ -943,8 +1002,8 @@
           renderSequence(seq);
 
           var interval = parseInt(val("inp-interval"), 10);
-          if (!interval || interval < 200) interval = 800;
-          if (interval > 3000) interval = 3000;
+          if (!interval || interval < 300) interval = 2500;
+          if (interval > 8000) interval = 8000;
 
           playSequence(seq.ids, interval, appOpts());
         });
