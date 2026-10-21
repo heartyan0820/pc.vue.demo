@@ -21,18 +21,34 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    # 部署记录会归到这个环境（Actions/Deployments 页面能直接看到线上地址）
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       # 1. 拉取仓库代码
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 使用与 Android workflow 相同的 pnpm 版本
+      # 2. 确保仓库已启用 Pages（源 = GitHub Actions）
+      #    少了这一步，deploy-pages 会报：
+      #    Failed to create deployment (status: 404) ... Ensure GitHub Pages has been enabled
+      #    原因是 Pages 站点不存在，POST /repos/{owner}/{repo}/pages/deployments 返回 404。
+      #    enablement: true 会调用 API 自动创建站点（需要上面的 pages: write 权限）。
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # 3. 使用与 Android workflow 相同的 pnpm 版本
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.9
 
-      # 3. 安装 Node.js 并缓存 pnpm 依赖
+      # 4. 安装 Node.js 并缓存 pnpm 依赖
       #    缓存以 simpleweb 的 lockfile 为准（本项目不是 pnpm workspace，
       #    simpleweb 是独立子包，有自己的 pnpm-lock.yaml）
       - name: Setup Node.js
@@ -42,26 +58,26 @@ jobs:
           cache: pnpm
           cache-dependency-path: simpleweb/pnpm-lock.yaml
 
-      # 4. 安装 simpleweb 依赖
+      # 5. 安装 simpleweb 依赖
       #    注意：必须在 simpleweb 目录下安装。根目录的 pnpm install 只会装
       #    app1 的依赖，装不到 simpleweb（它不是 workspace 成员）
       - name: Install dependencies
         run: pnpm -C simpleweb install --frozen-lockfile
 
-      # 5. 构建 simpleweb 生产包，输出到 simpleweb/dist/
+      # 6. 构建 simpleweb 生产包，输出到 simpleweb/dist/
       #    （原来是 `pnpm build`，构建的是根目录 app1 项目 → dist/，
       #     所以 Pages 上一直是"订单管理系统"。要换回 app1 就把下面
       #     这行改回 `pnpm build`，path 改回 dist）
       - name: Build
         run: pnpm -C simpleweb build
 
-      # 6. 把构建产物上传为一个 artifact（中间产物）
+      # 7. 把构建产物上传为一个 artifact（中间产物）
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: simpleweb/dist
 
-      # 7. 部署到 GitHub Pages
+      # 8. 部署到 GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
         id: deployment
