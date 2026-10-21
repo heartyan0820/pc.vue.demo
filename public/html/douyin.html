@@ -270,11 +270,46 @@
         <div id="env-box" style="margin-top: 10px"></div>
       </div>
 
+      <!-- 列表播放：一条 intent 带 gids 列表 -->
+      <div class="card is-primary">
+        <h3>
+          📋 列表播放（垫片模式）<span class="badge">已找到正确入口</span>
+        </h3>
+        <p>
+          不用再连发多条了 —— 抖音有个<b>未公开</b>入口，<b>一条 intent</b>
+          就能带上整个列表。 之前只播 1 条，是因为入口用错了（<code
+            >aweme/detail</code
+          >
+          只能开单条）。
+        </p>
+        <div class="code-box">
+          snssdk1128://aweme/push_detail?item_id=&lt;首条&gt;&amp;hot=feed&amp;cold=feed&amp;gids=&lt;ID1,ID2,...,你的ID&gt;
+        </div>
+        <p>
+          <b>gids</b> 是整串视频 ID（逗号分隔），<b>hot=feed&amp;cold=feed</b>
+          让客户端按 feed 形态播放，所以能上下滑。直接填整个列表即可：<b
+            >第一条会自动填进下面的「打开指定视频」当目标</b
+          >；你的视频不在列表里时，也会自动补到最后。
+        </p>
+        <input
+          id="inp-fillers"
+          class="field"
+          type="text"
+          autocomplete="off"
+          placeholder="整个播放列表，逗号分隔（第一条自动作为目标视频）"
+        />
+        <button class="btn" id="btn-sequence">打开抖音并按列表播放</button>
+        <div id="hint-sequence" class="hint"></div>
+        <div id="seq-list" class="seq-list"></div>
+        <div class="code-box" id="code-sequence"></div>
+      </div>
+
       <!-- 打开指定视频 -->
       <div class="card">
         <h3>🎬 打开指定视频</h3>
         <p>
-          打开的是单条视频的独立页，<b>不能上滑</b>（真机实测）；想让用户继续刷，请用上面的「打开用户主页」
+          这里是<b>单条</b>（独立页，不能上滑）；要连续刷多条请用上面的「列表播放」，
+          列表里第一条会自动填到这里
         </p>
         <input
           id="inp-video"
@@ -296,53 +331,6 @@
         <div class="code-box" id="code-video"></div>
       </div>
 
-      <!-- 列表播放：连开多个链接，让抖音串成一个播放列表 -->
-      <div class="card">
-        <h3>📋 列表播放（垫片模式）</h3>
-        <p>
-          <b>关键：下一条必须等抖音在前台受理完再发。</b>
-          实测「并发」方式 5 条在 274ms 内全发出（平均间隔 55ms），抖音还没启动完就全到了
-          onNewIntent，结果只播 1 条、不能滑 —— <b>太快会被合并</b>。
-          所以默认改成<b>串行 + 2500ms</b>：第 1 条唤起 App，之后每隔 2.5 秒发下一条，
-          让抖音逐条渲染进播放列表。间隔不合适就往上调（3~5 秒）。
-        </p>
-        <input
-          id="inp-fillers"
-          class="field"
-          type="text"
-          autocomplete="off"
-          placeholder="垫片视频 ID，多个用逗号/空格分隔（留空 = 不垫，只开你那条）"
-        />
-        <input
-          id="inp-interval"
-          class="field"
-          type="number"
-          min="300"
-          max="8000"
-          step="500"
-          value="2500"
-          placeholder="每条间隔（毫秒，建议 2500~5000）"
-        />
-        <div class="app-switch">
-          <label class="app-opt">
-            <input type="radio" name="trigger" value="serial" checked />
-            <span>串行：等 2.5 秒发下一条</span>
-          </label>
-          <label class="app-opt">
-            <input type="radio" name="trigger" value="burst" />
-            <span>并发：一次全发（已实测无效）</span>
-          </label>
-        </div>
-        <label class="chk">
-          <input type="checkbox" id="chk-warmup" />
-          <span>先打开推荐流预热，再投视频（怀疑这才是人家「前几条是推荐栏」的原因）</span>
-        </label>
-        <button class="btn" id="btn-sequence">打开抖音并按列表播放</button>
-        <div id="hint-sequence" class="hint"></div>
-        <div id="seq-list" class="seq-list"></div>
-        <div class="code-box" id="code-sequence"></div>
-      </div>
-
       <!-- 目标 App -->
       <div class="card">
         <h3>📱 目标 App</h3>
@@ -357,8 +345,10 @@
           </label>
         </div>
         <p class="app-tip">
-          极速版：包名 com.ss.android.ugc.aweme.lite，scheme <b>snssdk2329://</b>（和抖音的
-          snssdk1128 不一样）。真机上若不跳转，可用 URL 参数覆盖实测：?litePkg=xxx&amp;liteScheme=xxx
+          极速版：包名 com.ss.android.ugc.aweme.lite，scheme
+          <b>snssdk2329://</b>（和抖音的 snssdk1128
+          不一样）。真机上若不跳转，可用 URL
+          参数覆盖实测：?litePkg=xxx&amp;liteScheme=xxx
         </p>
       </div>
 
@@ -387,7 +377,8 @@
         <h3>🎞 可滑动的视频流 <span class="badge">推荐</span></h3>
         <p>
           想让多条视频能上下滑播，它们在抖音里必须本来就是一个列表。
-          <b>做法</b>：建一个只有你在用的话题（如 #我的专属标签），把要播的视频都带上这个话题，
+          <b>做法</b>：建一个只有你在用的话题（如
+          #我的专属标签），把要播的视频都带上这个话题，
           打开话题页就是这几条视频的滑动流。音乐页同理（同一个配乐下的视频）。
         </p>
         <input
@@ -604,8 +595,14 @@
       }
 
       // ============ 列表播放（垫片模式） ============
-      // 抖音不提供「指定视频的推荐流」，但连续触发多个 deeplink 会被串成一个播放列表；
-      // 于是先放几条「垫片」，把目标视频顶到列表末尾。
+      // 抖音有一个未公开入口：aweme/push_detail 用 gids 一次带上整串视频 ID，
+      // 配合 hot=feed&cold=feed 按 feed 形态播放，因此可以上下滑。
+      // 先用几条「垫片」把目标视频顶到列表末尾。
+      // 抖音作品ID是 15~22 位纯数字，其它（比如少一位的手抄串）直接丢掉
+      function isVideoId(id) {
+        return /^\d{15,22}$/.test(id || "");
+      }
+
       function buildSequence(silent) {
         var fillers = val("inp-fillers")
           .split(/[\s,，;；、]+/)
@@ -613,7 +610,7 @@
           .map(function (raw) {
             return resolveVideoInput(raw).id;
           })
-          .filter(Boolean);
+          .filter(isVideoId);
 
         var target = resolveVideoInput(val("inp-video")).id;
         if (!target) {
@@ -627,17 +624,43 @@
           return null;
         }
         if (!silent) setHint("hint-sequence", "");
-        return { fillers: fillers, ids: fillers.concat([target]) };
+
+        // 去重：列表里已经包含目标视频就保持你填的顺序；没包含才补到最后
+        var ids = [];
+        fillers.forEach(function (id) {
+          if (ids.indexOf(id) === -1) ids.push(id);
+        });
+        if (ids.indexOf(target) === -1) ids.push(target);
+        return { fillers: fillers, ids: ids, target: target };
+      }
+
+      // 列表里第一条有效 ID：给「打开指定视频」做默认值
+      function firstListId(raw) {
+        var first = "";
+        (raw || "")
+          .split(/[\s,，;；、]+/)
+          .filter(Boolean)
+          .some(function (item) {
+            var id = resolveVideoInput(item).id;
+            if (isVideoId(id)) {
+              first = id;
+              return true;
+            }
+            return false;
+          });
+        return first;
       }
 
       function renderSequence(seq) {
         var box = $("seq-list");
         box.textContent = "";
-        var last = seq.ids.length - 1;
+        var targetIdx = seq.ids.indexOf(seq.target);
+        var pad = 0;
 
         seq.ids.forEach(function (id, i) {
+          var isTarget = i === targetIdx;
           var row = document.createElement("div");
-          row.className = i === last ? "seq-item is-target" : "seq-item";
+          row.className = isTarget ? "seq-item is-target" : "seq-item";
 
           var idx = document.createElement("span");
           idx.className = "seq-index";
@@ -645,7 +668,7 @@
 
           var name = document.createElement("span");
           name.className = "seq-name";
-          name.textContent = i === last ? "本次任务" : "垫片视频 " + (i + 1);
+          name.textContent = isTarget ? "本次任务" : "垫片视频 " + ++pad;
 
           var idEl = document.createElement("span");
           idEl.className = "seq-id";
@@ -666,13 +689,11 @@
           box.appendChild(row);
         });
 
-        $("code-sequence").textContent = seq.ids
-          .map(function (id) {
-            return (
-              "DouyinOpener.openVideo(" + JSON.stringify(id) + appArg() + ");"
-            );
-          })
-          .join("\n");
+        $("code-sequence").textContent =
+          "DouyinOpener.openPlaylist(" +
+          JSON.stringify(seq.ids) +
+          appArg() +
+          ");";
       }
 
       // 发射记录写 localStorage：跳走后回到页面还能看到"到底发出去了几条"
@@ -692,113 +713,39 @@
         }
       }
 
-      // 实际每条之间的真实间隔：能看出浏览器有没有把后台定时器节流（预期 ≈ 你设的值）
-      function realGapText(r) {
-        var t = r.times || [];
-        if (t.length < 2) return "";
-        var gaps = [];
-        for (var i = 1; i < t.length; i++) gaps.push(t[i] - t[i - 1]);
-        var sum = gaps.reduce(function (a, b) {
-          return a + b;
-        }, 0);
-        return "（真实间隔 " + Math.round(sum / gaps.length) + "ms/条）";
-      }
-
       function showLastRecord() {
         var r = readRecord();
         if (!r) return;
-        var ms = (r.end || Date.now()) - r.start;
         var txt =
-          "上次列表播放：发出 " +
-          r.fired +
-          "/" +
+          "上次列表播放：已发 1 条 intent，携带 " +
           r.total +
-          " 条" +
-          (r.end ? "，用时 " + ms + "ms" : "（未走完，页面被切走）") +
-          realGapText(r);
-        if (r.end && r.fired === r.total) {
-          txt += " —— 前端全都发出去了；若 App 里仍只有 1 条，说明抖音端不排队，前端无解";
-        } else if (r.fired < r.total) {
-          txt += " —— 浏览器只放行了 " + r.fired + " 条，其余被拦；换「并发」方式再试";
-        }
+          " 条视频（末条为目标视频）";
         log(txt);
-        setHint("hint-sequence", txt, r.fired < r.total);
+        setHint("hint-sequence", txt, false);
       }
 
-      function currentTrigger() {
-        var el = document.querySelector('input[name="trigger"]:checked');
-        return el && el.value === "serial" ? "serial" : "burst";
-      }
-
-      var HOME_STEP = "__home__";
-
-      function playSequence(ids, interval, options) {
-        var mode = currentTrigger();
-        var warmBox = document.getElementById("chk-warmup");
-        var warmup = !!(warmBox && warmBox.checked);
-        // 勾选预热时，最前面插一步「打开推荐流」，让抖音先有 feed 的播放上下文
-        var steps = warmup ? [HOME_STEP].concat(ids) : ids.slice();
-
-        var rec = { total: steps.length, fired: 0, start: Date.now(), end: 0, times: [] };
-        saveRecord(rec);
-
-        function fire(item, idx) {
-          if (item === HOME_STEP) {
-            log("列表播放 [预热] → 先打开推荐流");
-            DouyinOpener.openHome(options);
-          } else {
-            log("列表播放 [" + idx + "/" + ids.length + "] → " + item);
-            DouyinOpener.openVideo(item, options);
-          }
-        }
-
-        if (mode === "burst") {
-          log(
-            "列表播放开始：共 " +
-              ids.length +
-              " 条" +
-              (warmup ? " + 预热" : "") +
-              "，方式 = 并发（iframe）",
-          );
-          steps.forEach(function (item, i) {
-            fire(item, item === HOME_STEP ? 0 : i);
-            rec.fired = i + 1;
-            rec.times.push(Date.now());
-            saveRecord(rec);
-          });
-          rec.end = Date.now();
-          saveRecord(rec);
-          log("列表播放：并发触发完毕");
-          return;
-        }
-
-        var i = 0;
+      /**
+       * 列表播放 = 一条 intent 带整个 gids 列表（aweme/push_detail）
+       * 不是连发多条 —— 连发只会互相覆盖（已两次实测）。
+       */
+      function playSequence(ids, options) {
+        saveRecord({ total: ids.length, start: Date.now(), end: Date.now() });
         log(
-          "列表播放开始：共 " +
+          "列表播放：一条 intent 携带 " +
             ids.length +
-            " 条" +
-            (warmup ? " + 预热" : "") +
-            "，方式 = 串行 " +
-            interval +
-            "ms",
+            " 条（item_id=" +
+            ids[0] +
+            "，末条为目标 " +
+            ids[ids.length - 1] +
+            "）",
         );
-        function step() {
-          if (i >= steps.length) {
-            rec.end = Date.now();
-            saveRecord(rec);
-            log("列表播放：全部触发完毕");
-            return;
-          }
-          var item = steps[i];
-          i++;
-          fire(item, item === HOME_STEP ? 0 : i - (warmup ? 1 : 0));
-          rec.fired = i;
-          rec.times.push(Date.now());
-          saveRecord(rec);
-          // 首条唤起后页面会切后台，Chrome 会把定时器节流到 ~1s，间隔太小反而容易丢
-          if (i < steps.length) setTimeout(step, interval);
-        }
-        step();
+        setHint(
+          "hint-sequence",
+          "已发出 1 条 intent（带 " +
+            ids.length +
+            " 个视频）；App 里顺序不对时，用下面「打开」逐条点",
+        );
+        DouyinOpener.openPlaylist(ids, options);
       }
 
       function requireUserInput() {
@@ -945,14 +892,22 @@
           var id = requireStreamId("话题");
           if (!id) return;
           log("点击「打开话题页」，ID = " + JSON.stringify(id));
-          DouyinOpener.openCustom("challenge/detail/" + id + "?refer=web", null, appOpts());
+          DouyinOpener.openCustom(
+            "challenge/detail/" + id + "?refer=web",
+            null,
+            appOpts(),
+          );
         });
 
         $("btn-music").addEventListener("click", function () {
           var id = requireStreamId("音乐");
           if (!id) return;
           log("点击「打开音乐页」，ID = " + JSON.stringify(id));
-          DouyinOpener.openCustom("music/detail/" + id + "?refer=web", null, appOpts());
+          DouyinOpener.openCustom(
+            "music/detail/" + id + "?refer=web",
+            null,
+            appOpts(),
+          );
         });
 
         $("btn-video").addEventListener("click", function () {
@@ -1000,17 +955,29 @@
           var seq = buildSequence();
           if (!seq) return;
           renderSequence(seq);
+          playSequence(seq.ids, appOpts());
+        });
 
-          var interval = parseInt(val("inp-interval"), 10);
-          if (!interval || interval < 300) interval = 2500;
-          if (interval > 8000) interval = 8000;
-
-          playSequence(seq.ids, interval, appOpts());
+        // 先填列表时，自动把第一条有效 ID 补进「打开指定视频」；
+        // 手动改过就不覆盖，除非你又清空了它
+        var videoEl = $("inp-video");
+        $("inp-fillers").addEventListener("input", function () {
+          var first = firstListId(val("inp-fillers"));
+          var auto = videoEl.getAttribute("data-auto") === "1";
+          if (first && (auto || !val("inp-video").trim())) {
+            videoEl.value = first;
+            videoEl.setAttribute("data-auto", "1");
+            setHint("hint-video", "已自动填入列表第一条：" + first);
+            syncCode();
+          }
+          var seq = buildSequence(true);
+          if (seq) renderSequence(seq);
         });
 
         // 输入变化时实时重画列表，方便确认顺序
-        ["inp-fillers", "inp-video", "inp-stream"].forEach(function (id) {
+        ["inp-video", "inp-stream"].forEach(function (id) {
           $(id).addEventListener("input", function () {
+            if (id === "inp-video") videoEl.removeAttribute("data-auto");
             var seq = buildSequence(true);
             if (seq) renderSequence(seq);
             if (id === "inp-stream") syncCode();

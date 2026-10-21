@@ -299,6 +299,54 @@
   }
 
   /**
+   * 按列表连续播放多条视频（一条 intent 带整个列表）
+   *
+   * 这是抖音**未公开**的入口，靠它才能做到「打开抖音后连着刷一串指定视频」：
+   *
+   *   snssdk1128://aweme/push_detail?item_id=<首条>&hot=feed&cold=feed&gids=<ID1,ID2,...>
+   *   极速版 snssdk2329:// 同上
+   *
+   * 三个要点（缺一个就退回「孤立单视频、不能上滑」）：
+   *   1. 路径是 aweme/push_detail，不是 aweme/detail
+   *   2. gids 一次带上整个列表（英文逗号分隔），item_id 是其中要开始播的那条
+   *   3. hot=feed&cold=feed 让客户端按 feed 形态呈现，才可上下滑
+   *
+   * 注意：官方未公开，顺序是否生效取决于客户端版本；失效时请退回 openVideo() 逐条打开。
+   *
+   * @param {string[]} videoIds - 视频ID列表（按播放顺序，目标视频放最后）
+   * @param {object} [options]
+   */
+  function openPlaylist(videoIds, options) {
+    var ids = (videoIds || [])
+      .map(function (id) {
+        return String(id == null ? "" : id).trim();
+      })
+      .filter(function (id) {
+        return /^\d{8,}$/.test(id);
+      });
+
+    if (!ids.length) {
+      debug("openPlaylist：没有有效视频ID，已忽略");
+      return;
+    }
+
+    var scheme =
+      DOUYIN_SCHEME +
+      "aweme/push_detail?item_id=" +
+      ids[0] +
+      "&hot=feed&cold=feed&gids=" +
+      ids.join(",");
+    // 兜底网页落到最后一条（目标视频）
+    var web = DOUYIN_WEB_BASE + "video/" + ids[ids.length - 1];
+    debug(
+      "列表播放：共 " +
+        ids.length +
+        " 条（末条为目标视频），一条 intent 带整个 gids 列表",
+    );
+    open(scheme, web, options);
+  }
+
+  /**
    * 打开抖音直播间
    * @param {string} roomId - 直播间ID
    * @param {string} [enterFrom] - 来源标记（可选）
@@ -368,6 +416,7 @@
     open: open,
     openUser: openUser,
     openVideo: openVideo,
+    openPlaylist: openPlaylist,
     openLive: openLive,
     openHome: openHome,
     config: config,
