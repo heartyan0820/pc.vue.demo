@@ -18,6 +18,8 @@ dist-ssr
 # 千万别提交：pnpm 9 会把它当 workspace 清单读，直接报
 # "packages field missing or empty"，导致 GitHub Actions 部署失败。
 ecmweb/pnpm-workspace.yaml
+# dyweb 同理（脚手架在 dyweb 下生成的 allowBuilds 占位文件）
+dyweb/pnpm-workspace.yaml
 
 # Editor directories and files
 .vscode/*
