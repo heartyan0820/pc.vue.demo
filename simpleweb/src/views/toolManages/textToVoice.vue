@@ -31,7 +31,13 @@ function loadVoices() {
   }
 }
 
-// 在线朗读兜底：不支持本地合成时，用公开 TTS 接口按顺序播放（长文本按句拆分）
+// 在线朗读兜底：不支持本地合成时用公开 TTS 接口播放。
+// 单个源在手机端（尤其微信等内置浏览器）可能被拦截，故多源依次回退
+const TTS_SOURCES = [
+  (t) => `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(t)}&le=zh`,
+  (t) => `https://fanyi.baidu.com/gettts?lan=zh&text=${encodeURIComponent(t)}&spd=3&source=web`,
+]
+
 const audio = ref(null)
 
 function splitSentences(content) {
@@ -41,6 +47,13 @@ function splitSentences(content) {
 function onlineSpeak(content) {
   const list = splitSentences(content)
   let index = 0
+  let sourceIndex = 0
+
+  const fail = () => {
+    audio.value = null
+    speaking.value = false
+    ElMessage.error('在线朗读失败：请检查网络，或复制链接后在 Chrome / Safari 中打开')
+  }
 
   const playNext = () => {
     if (index >= list.length) {
@@ -48,24 +61,33 @@ function onlineSpeak(content) {
       speaking.value = false
       return
     }
-    const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(list[index])}&le=zh`
-    const el = new Audio(url)
+    if (sourceIndex >= TTS_SOURCES.length) {
+      fail()
+      return
+    }
+
+    const el = new Audio()
+    el.preload = 'auto'
     audio.value = el
+    // 同一句失败时可能同时触发 onerror 与 play() reject，用 settled 避免重复切换
+    let settled = false
+    const nextSource = () => {
+      if (settled) return
+      settled = true
+      sourceIndex += 1
+      playNext()
+    }
+
     el.onplay = () => (speaking.value = true)
     el.onended = () => {
       index += 1
+      sourceIndex = 0
       playNext()
     }
-    el.onerror = () => {
-      audio.value = null
-      speaking.value = false
-      ElMessage.error('在线朗读失败，请检查网络后重试')
-    }
-    el.play().catch(() => {
-      audio.value = null
-      speaking.value = false
-      ElMessage.error('在线朗读播放失败，建议在系统浏览器中打开')
-    })
+    el.onerror = nextSource
+    el.src = TTS_SOURCES[sourceIndex](list[index])
+    el.load()
+    el.play().catch(nextSource)
   }
 
   playNext()
@@ -111,12 +133,25 @@ function play() {
 
 function stop() {
   if (audio.value) {
-    audio.value.pause()
+    const el = audio.value
+    // 解绑回调，避免停止后再触发 onended 继续播下一句
+    el.onended = null
+    el.onerror = null
+    el.pause()
     audio.value = null
   }
+  speaking.value = false
   if (!supported) return
   synth.cancel()
-  speaking.value = false
+}
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(location.href)
+    ElMessage.success('链接已复制')
+  } catch {
+    ElMessage.warning('复制失败，请手动复制地址栏链接')
+  }
 }
 
 function toggle() {
@@ -143,7 +178,10 @@ onUnmounted(() => {
       show-icon
       :closable="false"
       title="当前浏览器不支持本地语音合成（常见于微信等内置浏览器），已自动切换为在线朗读；如需音色/语速调节，请在 Chrome / Safari 浏览器中打开"
-    />
+    >
+      <el-button size="small" @click="copyLink">复制页面链接</el-button>
+      <span class="tts__hint">粘贴到 Chrome / Safari 打开即可使用本地语音合成</span>
+    </el-alert>
 
     <el-input
       v-model="text"
@@ -204,6 +242,12 @@ onUnmounted(() => {
 
   &__tip {
     margin-bottom: 12px;
+  }
+
+  &__hint {
+    margin-left: 12px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
   }
 
   &__input {
