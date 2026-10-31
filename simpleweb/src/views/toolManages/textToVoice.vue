@@ -42,6 +42,7 @@ const audioEl = ref(null)
 const videoEl = ref(null)
 const useVideo = ref(false)
 const showControls = ref(false)
+const mediaError = ref('')
 
 function mediaEl() {
   return useVideo.value ? videoEl.value : audioEl.value
@@ -70,12 +71,15 @@ function onlineSpeak(content) {
   const list = splitSentences(content)
   let index = 0
   useVideo.value = false
+  mediaError.value = ''
   showControls.value = true // 播放中即显示控件，方便微信内手动点播
 
   const fail = () => {
+    const code = mediaEl()?.error?.code
     speaking.value = false
     showControls.value = true
-    ElMessage.error(describeMediaError(mediaEl()?.error?.code))
+    mediaError.value = `在线朗读失败（错误码 ${code ?? '未知'}：${describeMediaError(code)}），可点击下方播放器手动播放`
+    ElMessage.error(describeMediaError(code))
   }
 
   const playNext = () => {
@@ -109,8 +113,9 @@ function onlineSpeak(content) {
       playNext()
     }
     el.onerror = retryWithVideo
+    el.volume = volume.value
     el.src = TTS_URL(list[index])
-    el.load()
+    // 不调用 load()：部分内核（含微信 X5）在 load 未完成时 play 会直接失败
     el.play().catch(retryWithVideo)
   }
 
@@ -200,10 +205,10 @@ onUnmounted(() => {
       type="warning"
       show-icon
       :closable="false"
-      title="当前浏览器不支持本地语音合成（常见于微信等内置浏览器），已自动切换为在线朗读；如需音色/语速调节，请在 Chrome / Safari 浏览器中打开"
+      title="当前浏览器不支持语音合成（微信等内置浏览器无此能力）。请点击右上角「···」→「在浏览器打开」，即可正常朗读并使用音色、语速调节"
     >
       <el-button size="small" @click="copyLink">复制页面链接</el-button>
-      <span class="tts__hint">粘贴到 Chrome / Safari 打开即可使用本地语音合成</span>
+      <span class="tts__hint">粘贴到 Chrome / Safari 打开即可</span>
     </el-alert>
 
     <el-input
@@ -217,8 +222,9 @@ onUnmounted(() => {
       placeholder="请输入要朗读的文本"
     />
 
+    <!-- 音色/语速/音调依赖本地语音合成，在线朗读模式下不支持，故隐藏 -->
     <div class="tts__panel">
-      <div class="tts__field">
+      <div v-if="supported" class="tts__field">
         <span class="tts__label">音色</span>
         <el-select v-model="voiceURI" class="tts__select" placeholder="默认音色" clearable>
           <el-option
@@ -230,13 +236,13 @@ onUnmounted(() => {
         </el-select>
       </div>
 
-      <div class="tts__field">
+      <div v-if="supported" class="tts__field">
         <span class="tts__label">语速</span>
         <el-slider v-model="rate" :min="0.5" :max="2" :step="0.1" />
         <span class="tts__value">{{ percent(rate) }}</span>
       </div>
 
-      <div class="tts__field">
+      <div v-if="supported" class="tts__field">
         <span class="tts__label">音调</span>
         <el-slider v-model="pitch" :min="0" :max="2" :step="0.1" />
         <span class="tts__value">{{ percent(pitch) }}</span>
@@ -256,6 +262,15 @@ onUnmounted(() => {
       <el-button @click="stop">停止</el-button>
       <el-button text @click="text = ''">清空</el-button>
     </div>
+
+    <el-alert
+      v-if="mediaError"
+      class="tts__tip"
+      type="error"
+      show-icon
+      :title="mediaError"
+      @close="mediaError = ''"
+    />
 
     <!-- 微信等内置浏览器用页面内真实媒体元素播放；video 作为 audio 失败后的兜底 -->
     <div class="tts__media">
