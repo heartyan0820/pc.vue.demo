@@ -50,11 +50,17 @@
             </el-icon>
             <span>AI聊天</span>
           </el-menu-item>
-          <el-menu-item index="/openDouyin">
+          <el-menu-item index="/openTikTok">
             <el-icon>
               <List />
             </el-icon>
-            <span>openDouyin</span>
+            <span>openTikTok</span>
+          </el-menu-item>
+          <el-menu-item index="/textToVoice">
+            <el-icon>
+              <List />
+            </el-icon>
+            <span>文本转语音</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>

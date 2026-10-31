@@ -13,6 +13,11 @@ const routes = [
     redirect: "/orders",
     children: [
       {
+        name: "404",
+        path: "/404",
+        component: () => import("../views/error/404.vue"),
+      },
+      {
         name: "orders",
         path: "orders",
         meta: { title: "订单管理" },
@@ -43,15 +48,16 @@ const routes = [
         component: () => import("../views/toolManages/aiChatManage.vue"),
       },
       {
-        name: "openDouyin",
-        path: "openDouyin",
-        meta: { title: "openDouyin" },
+        name: "openTikTok",
+        path: "openTikTok",
+        meta: { title: "openTikTok" },
         component: () => import("../views/toolManages/openDouyin.vue"),
       },
       {
-        name: "404",
-        path: "/404",
-        component: () => import("../views/error/404.vue"),
+        name: "textToVoice",
+        path: "textToVoice",
+        meta: { title: "文字转语音" },
+        component: () => import("../views/toolManages/textToVoice.vue"),
       },
     ],
   },
