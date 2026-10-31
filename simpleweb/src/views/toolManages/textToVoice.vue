@@ -2,9 +2,11 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 
-// Web Speech API: 浏览器原生语音合成，无需联网、无需后端
-const synth = window.speechSynthesis
-const supported = !!synth
+// Web Speech API：浏览器原生语音合成，无需联网、无需后端。
+// 微信等手机内置浏览器常无此 API（或仅有 webkit 前缀版本），故做前缀兼容
+const synth = window.speechSynthesis || window.webkitSpeechSynthesis
+const Utterance = window.SpeechSynthesisUtterance || window.webkitSpeechSynthesisUtterance
+const supported = !!synth && !!Utterance
 
 const text = ref('')
 const speaking = ref(false)
@@ -29,6 +31,46 @@ function loadVoices() {
   }
 }
 
+// 在线朗读兜底：不支持本地合成时，用公开 TTS 接口按顺序播放（长文本按句拆分）
+const audio = ref(null)
+
+function splitSentences(content) {
+  return content.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g)?.filter((s) => s.trim()) || [content]
+}
+
+function onlineSpeak(content) {
+  const list = splitSentences(content)
+  let index = 0
+
+  const playNext = () => {
+    if (index >= list.length) {
+      audio.value = null
+      speaking.value = false
+      return
+    }
+    const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(list[index])}&le=zh`
+    const el = new Audio(url)
+    audio.value = el
+    el.onplay = () => (speaking.value = true)
+    el.onended = () => {
+      index += 1
+      playNext()
+    }
+    el.onerror = () => {
+      audio.value = null
+      speaking.value = false
+      ElMessage.error('在线朗读失败，请检查网络后重试')
+    }
+    el.play().catch(() => {
+      audio.value = null
+      speaking.value = false
+      ElMessage.error('在线朗读播放失败，建议在系统浏览器中打开')
+    })
+  }
+
+  playNext()
+}
+
 function play() {
   const content = text.value.trim()
   if (!content) {
@@ -36,14 +78,16 @@ function play() {
     return
   }
   if (!supported) {
-    ElMessage.error('当前浏览器不支持语音合成，请使用 Chrome / Edge 浏览器')
+    onlineSpeak(content)
     return
   }
 
   synth.cancel()
   loadVoices()
+  // Chrome 在 paused 状态下 speak 不会发声，需先 resume
+  if (synth.paused) synth.resume()
 
-  const utterance = new SpeechSynthesisUtterance(content)
+  const utterance = new Utterance(content)
   const voice = selectedVoice.value
   if (voice) {
     utterance.voice = voice
@@ -66,6 +110,10 @@ function play() {
 }
 
 function stop() {
+  if (audio.value) {
+    audio.value.pause()
+    audio.value = null
+  }
   if (!supported) return
   synth.cancel()
   speaking.value = false
@@ -91,10 +139,10 @@ onUnmounted(() => {
     <el-alert
       v-if="!supported"
       class="tts__tip"
-      type="error"
+      type="warning"
       show-icon
       :closable="false"
-      title="当前浏览器不支持语音合成功能，请使用 Chrome / Edge 浏览器"
+      title="当前浏览器不支持本地语音合成（常见于微信等内置浏览器），已自动切换为在线朗读；如需音色/语速调节，请在 Chrome / Safari 浏览器中打开"
     />
 
     <el-input
