@@ -31,14 +31,36 @@ function loadVoices() {
   }
 }
 
-// 在线朗读兜底：不支持本地合成时用公开 TTS 接口播放。
-// 单个源在手机端（尤其微信等内置浏览器）可能被拦截，故多源依次回退
-const TTS_SOURCES = [
-  (t) => `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(t)}&le=zh`,
-  (t) => `https://fanyi.baidu.com/gettts?lan=zh&text=${encodeURIComponent(t)}&spd=3&source=web`,
-]
+// 在线朗读兜底：供微信等无 speechSynthesis 的内置浏览器使用。
+// 注意：该接口不支持 Range 请求、无 CORS 头，因此只能用媒体元素直连播放，
+// 不能 fetch 成 blob（会跨域失败）。若自建接口，把地址换到这里即可。
+const TTS_URL = (t) => `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(t)}&le=zh`
 
-const audio = ref(null)
+// 微信 X5 内核对「未插入 DOM 的 new Audio()」兼容性较差，改用模板中真实的媒体元素；
+// audio 失败时再退化到 video 元素（X5 对 video 的解码/播放支持更好）
+const audioEl = ref(null)
+const videoEl = ref(null)
+const useVideo = ref(false)
+const showControls = ref(false)
+
+function mediaEl() {
+  return useVideo.value ? videoEl.value : audioEl.value
+}
+
+function describeMediaError(code) {
+  switch (code) {
+    case 1:
+      return '音频加载被中止，请重试'
+    case 2:
+      return '网络错误：当前网络无法加载外部音频'
+    case 3:
+      return '音频解码失败'
+    case 4:
+      return '音频源不可用，可点击页面上的播放器手动播放'
+    default:
+      return '在线朗读失败，可点击页面上的播放器手动播放'
+  }
+}
 
 function splitSentences(content) {
   return content.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g)?.filter((s) => s.trim()) || [content]
@@ -47,47 +69,49 @@ function splitSentences(content) {
 function onlineSpeak(content) {
   const list = splitSentences(content)
   let index = 0
-  let sourceIndex = 0
+  useVideo.value = false
+  showControls.value = true // 播放中即显示控件，方便微信内手动点播
 
   const fail = () => {
-    audio.value = null
     speaking.value = false
-    ElMessage.error('在线朗读失败：请检查网络，或复制链接后在 Chrome / Safari 中打开')
+    showControls.value = true
+    ElMessage.error(describeMediaError(mediaEl()?.error?.code))
   }
 
   const playNext = () => {
     if (index >= list.length) {
-      audio.value = null
       speaking.value = false
+      showControls.value = false
       return
     }
-    if (sourceIndex >= TTS_SOURCES.length) {
+    const el = mediaEl()
+    if (!el) {
       fail()
       return
     }
 
-    const el = new Audio()
-    el.preload = 'auto'
-    audio.value = el
-    // 同一句失败时可能同时触发 onerror 与 play() reject，用 settled 避免重复切换
+    // 同一句失败时 onerror 与 play() reject 可能同时触发，用 settled 避免重复切换
     let settled = false
-    const nextSource = () => {
+    const retryWithVideo = () => {
       if (settled) return
       settled = true
-      sourceIndex += 1
-      playNext()
+      if (!useVideo.value) {
+        useVideo.value = true
+        playNext()
+        return
+      }
+      fail()
     }
 
     el.onplay = () => (speaking.value = true)
     el.onended = () => {
       index += 1
-      sourceIndex = 0
       playNext()
     }
-    el.onerror = nextSource
-    el.src = TTS_SOURCES[sourceIndex](list[index])
+    el.onerror = retryWithVideo
+    el.src = TTS_URL(list[index])
     el.load()
-    el.play().catch(nextSource)
+    el.play().catch(retryWithVideo)
   }
 
   playNext()
@@ -132,13 +156,12 @@ function play() {
 }
 
 function stop() {
-  if (audio.value) {
-    const el = audio.value
+  const el = mediaEl()
+  if (el) {
     // 解绑回调，避免停止后再触发 onended 继续播下一句
     el.onended = null
     el.onerror = null
     el.pause()
-    audio.value = null
   }
   speaking.value = false
   if (!supported) return
@@ -233,6 +256,20 @@ onUnmounted(() => {
       <el-button @click="stop">停止</el-button>
       <el-button text @click="text = ''">清空</el-button>
     </div>
+
+    <!-- 微信等内置浏览器用页面内真实媒体元素播放；video 作为 audio 失败后的兜底 -->
+    <div class="tts__media">
+      <audio ref="audioEl" preload="auto" playsinline :controls="showControls" />
+      <video
+        v-show="useVideo"
+        ref="videoEl"
+        preload="auto"
+        playsinline
+        webkit-playsinline
+        x5-playsinline
+        :controls="showControls"
+      />
+    </div>
   </div>
 </template>
 
@@ -287,6 +324,17 @@ onUnmounted(() => {
 
   &__actions {
     margin-top: 20px;
+  }
+
+  &__media {
+    margin-top: 12px;
+
+    audio,
+    video {
+      width: 100%;
+      max-width: 420px;
+      height: 36px;
+    }
   }
 }
 </style>
