@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build-gp-pages": "vite build --mode gp_pages",
     "preview": "vite preview"
   },
   "dependencies": {
