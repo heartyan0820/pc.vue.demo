@@ -11,6 +11,8 @@ const AI_PROXY_ALLOWED_HOSTS = new Set([
   "api.deepseek.com",
   "dashscope.aliyuncs.com",
   "qianfan.baidubce.com",
+  // 火山方舟：即梦 / Seedream 图片生成
+  "ark.cn-beijing.volces.com",
 ]);
 
 const SKIP_REQUEST_HEADERS = new Set([
