@@ -89,6 +89,9 @@
                 <el-dropdown-item command="/users">用户管理</el-dropdown-item>
                 <el-dropdown-item command="/files">文件管理</el-dropdown-item>
                 <el-dropdown-item command="/aiImage">AI图片生成</el-dropdown-item>
+                <el-dropdown-item command="/aiChat">AI聊天</el-dropdown-item>
+                <el-dropdown-item command="/openTikTok">openTikTok</el-dropdown-item>
+                <el-dropdown-item command="/textToVoice">文本转语音</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
